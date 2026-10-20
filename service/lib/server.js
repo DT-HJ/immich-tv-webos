@@ -1,20 +1,21 @@
 'use strict';
+/* eslint-disable no-var -- runs on webOS 4.x's Node 0.12.2 (see lib/pairing.js) */
 
 // Session control stays on the TV's Luna bus; the phone-facing server exposes
 // only sign-in and approval. dev.js adds desktop-only control routes.
 
 /* global __dirname */
-const http = require('http');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const Buffer = require('buffer').Buffer;
-const pairing = require('./pairing');
-const immich = require('./immich');
+var http = require('http');
+var fs = require('fs');
+var os = require('os');
+var path = require('path');
+var Buffer = require('buffer').Buffer;
+var pairing = require('./pairing');
+var immich = require('./immich');
 
-const MAX_BODY_BYTES = 16 * 1024;
+var MAX_BODY_BYTES = 16 * 1024;
 
-let pageCache = null;
+var pageCache = null;
 function verifyPage() {
 	if (pageCache === null) {
 		pageCache = fs.readFileSync(path.join(__dirname, '..', 'verify.html'));
@@ -23,12 +24,12 @@ function verifyPage() {
 }
 
 function lanIp() {
-	const interfaces = os.networkInterfaces();
-	const names = Object.keys(interfaces);
-	for (let i = 0; i < names.length; i++) {
-		const addresses = interfaces[names[i]] || [];
-		for (let j = 0; j < addresses.length; j++) {
-			const addr = addresses[j];
+	var interfaces = os.networkInterfaces();
+	var names = Object.keys(interfaces);
+	for (var i = 0; i < names.length; i++) {
+		var addresses = interfaces[names[i]] || [];
+		for (var j = 0; j < addresses.length; j++) {
+			var addr = addresses[j];
 			if (addr.family === 'IPv4' && !addr.internal) return addr.address;
 		}
 	}
@@ -37,15 +38,15 @@ function lanIp() {
 
 function buildPairingUrl(host, port, session) {
 	if (!host) return null;
-	let url = 'http://' + host + ':' + port + '/?c=' + session.code;
+	var url = 'http://' + host + ':' + port + '/?c=' + session.code;
 	if (session.suggestedUrl) url += '&u=' + encodeURIComponent(session.suggestedUrl);
 	return url;
 }
 
 function readBody(req) {
 	return new Promise(function (resolve, reject) {
-		let size = 0;
-		const chunks = [];
+		var size = 0;
+		var chunks = [];
 		req.on('data', function (chunk) {
 			size += chunk.length;
 			if (size > MAX_BODY_BYTES) {
@@ -63,23 +64,23 @@ function readBody(req) {
 }
 
 function sendJson(res, status, body, extraHeaders) {
-	const payload = Buffer.from(JSON.stringify(body), 'utf8');
-	const headers = {'Content-Type': 'application/json', 'Content-Length': payload.length};
-	const extra = extraHeaders || {};
+	var payload = JSON.stringify(body);
+	var headers = {'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload, 'utf8')};
+	var extra = extraHeaders || {};
 	Object.keys(extra).forEach(function (key) {
 		headers[key] = extra[key];
 	});
 	res.writeHead(status, headers);
-	res.end(payload);
+	res.end(payload, 'utf8');
 }
 
 function createPairingServer(context) {
-	const now = context.now || Date.now;
+	var now = context.now || Date.now;
 
 	function handleApprove(req, res) {
 		readBody(req)
 			.then(function (raw) {
-				let body = null;
+				var body = null;
 				try {
 					body = JSON.parse(raw);
 				} catch (e) {
@@ -89,10 +90,10 @@ function createPairingServer(context) {
 					sendJson(res, 400, {ok: false, error: 'Fill in every field'});
 					return;
 				}
-				const session = context.getSession();
-				const codeStatus = pairing.checkCode(session, now(), body.code);
+				var session = context.getSession();
+				var codeStatus = pairing.checkCode(session, now(), body.code);
 				if (codeStatus !== 'ok') {
-					const message =
+					var message =
 						codeStatus === 'bad_code'
 							? "That code doesn't match the one on the TV"
 							: 'This pairing session has expired. Start again on the TV.';
@@ -118,8 +119,8 @@ function createPairingServer(context) {
 			});
 	}
 
-	const server = http.createServer(function (req, res) {
-		const pathname = String(req.url || '/').split('?')[0];
+	var server = http.createServer(function (req, res) {
+		var pathname = String(req.url || '/').split('?')[0];
 		if (context.extraRoutes && context.extraRoutes(req, res, pathname)) return;
 		if (req.method === 'GET' && (pathname === '/' || pathname === '/index.html')) {
 			res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
@@ -138,9 +139,9 @@ function createPairingServer(context) {
 
 function listenOnFreePort(server, basePort, tries) {
 	return new Promise(function (resolve, reject) {
-		let attempt = 0;
+		var attempt = 0;
 		function tryListen() {
-			const port = basePort + attempt;
+			var port = basePort + attempt;
 			server.once('error', function (err) {
 				if (err && err.code === 'EADDRINUSE' && attempt + 1 < tries) {
 					attempt += 1;
@@ -158,4 +159,11 @@ function listenOnFreePort(server, basePort, tries) {
 	});
 }
 
-module.exports = {createPairingServer, listenOnFreePort, sendJson, readBody, lanIp, buildPairingUrl};
+module.exports = {
+	createPairingServer: createPairingServer,
+	listenOnFreePort: listenOnFreePort,
+	sendJson: sendJson,
+	readBody: readBody,
+	lanIp: lanIp,
+	buildPairingUrl: buildPairingUrl
+};

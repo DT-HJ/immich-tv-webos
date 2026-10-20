@@ -1,22 +1,23 @@
 'use strict';
+/* eslint-disable no-var -- runs on webOS 4.x's Node 0.12.2 (see lib/pairing.js) */
 
 // Luna services may be reclaimed between calls. Polling keeps this one alive
 // while pairing is visible; ActivityManager covers gaps when available.
 
-const Service = require('webos-service');
-const pairing = require('./lib/pairing');
-const serverLib = require('./lib/server');
+var Service = require('webos-service');
+var pairing = require('./lib/pairing');
+var serverLib = require('./lib/server');
 
-const SERVICE_ID = 'com.seeky91.immichtv.service';
-const BASE_PORT = 8788;
-const PORT_TRIES = 5;
+var SERVICE_ID = 'com.seeky91.immichtv.service';
+var BASE_PORT = 8788;
+var PORT_TRIES = 5;
 
-const service = new Service(SERVICE_ID);
+var service = new Service(SERVICE_ID);
 
-let session = null;
-let httpServer = null;
-let httpPort = null;
-let activity = null;
+var session = null;
+var httpServer = null;
+var httpPort = null;
+var activity = null;
 
 function holdActivity() {
 	if (activity !== null) return;
@@ -55,7 +56,7 @@ function teardown() {
 
 function ensureServer() {
 	if (httpServer !== null) return Promise.resolve(httpPort);
-	const server = serverLib.createPairingServer({
+	var server = serverLib.createPairingServer({
 		getSession: function () {
 			return session;
 		}
@@ -71,15 +72,15 @@ function ensureServer() {
 }
 
 service.register('start', function (message) {
-	const params = message.payload || {};
-	const now = Date.now();
+	var params = message.payload || {};
+	var now = Date.now();
 	// Reuse a pending session so remounting cannot invalidate a code being entered.
 	if (pairing.statusOf(session, now) !== 'pending') {
 		session = pairing.createSession(now, {suggestedUrl: params.suggestedUrl});
 	}
 	ensureServer().then(
 		function (port) {
-			const url = serverLib.buildPairingUrl(serverLib.lanIp(), port, session);
+			var url = serverLib.buildPairingUrl(serverLib.lanIp(), port, session);
 			if (!url) {
 				teardown();
 				message.respond({returnValue: false, errorText: 'TV has no network address'});
@@ -102,9 +103,9 @@ service.register('start', function (message) {
 });
 
 service.register('status', function (message) {
-	const state = pairing.statusOf(session, Date.now());
+	var state = pairing.statusOf(session, Date.now());
 	if (state === 'approved') {
-		const result = pairing.consumeResult(session);
+		var result = pairing.consumeResult(session);
 		message.respond({returnValue: true, state: 'approved', result: result});
 		teardown();
 		return;

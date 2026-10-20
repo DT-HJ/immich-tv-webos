@@ -1,15 +1,17 @@
 'use strict';
+/* eslint-disable no-var -- runs on webOS 4.x's Node 0.12.2 (see lib/pairing.js) */
 
 // Plain-node test suite for the pairing service (no Jest: this code targets
-// the TV's Node 8 and must stay runnable there).  Run: node service/test.js
+// the TV's Node, down to 0.12.2 on webOS 4.x, and must stay runnable there).
+// Run: node service/test.js
 
-const assert = require('assert');
-const http = require('http');
-const pairing = require('./lib/pairing');
-const immich = require('./lib/immich');
-const serverLib = require('./lib/server');
+var assert = require('assert');
+var http = require('http');
+var pairing = require('./lib/pairing');
+var immich = require('./lib/immich');
+var serverLib = require('./lib/server');
 
-const tests = [];
+var tests = [];
 function test(name, fn) {
 	tests.push({name: name, fn: fn});
 }
@@ -21,8 +23,8 @@ function postJson(port, path, body) {
 /* ── pairing.js ── */
 
 test('session lifecycle: pending → approved → consumed', function () {
-	const t0 = 1000;
-	const session = pairing.createSession(t0);
+	var t0 = 1000;
+	var session = pairing.createSession(t0);
 	assert.strictEqual(pairing.statusOf(session, t0), 'pending');
 	assert.strictEqual(session.code.length, pairing.CODE_LENGTH);
 
@@ -34,25 +36,25 @@ test('session lifecycle: pending → approved → consumed', function () {
 	assert.strictEqual(pairing.statusOf(session, t0), 'approved');
 	assert.strictEqual(pairing.checkCode(session, t0, session.code), 'not_pending');
 
-	const result = pairing.consumeResult(session);
+	var result = pairing.consumeResult(session);
 	assert.strictEqual(result.email, 'a@b.c');
 	assert.strictEqual(pairing.consumeResult(session), null, 'result is single-delivery');
 	assert.strictEqual(pairing.statusOf(session, t0), 'consumed');
 });
 
 test('session expires by time', function () {
-	const t0 = 1000;
-	const session = pairing.createSession(t0);
-	const later = t0 + pairing.SESSION_TTL_MS;
+	var t0 = 1000;
+	var session = pairing.createSession(t0);
+	var later = t0 + pairing.SESSION_TTL_MS;
 	assert.strictEqual(pairing.statusOf(session, later), 'expired');
 	assert.strictEqual(pairing.checkCode(session, later, session.code), 'expired');
 	assert.strictEqual(pairing.markApproved(session, later, {}), false);
 });
 
 test('repeated bad codes burn the session', function () {
-	const t0 = 1000;
-	const session = pairing.createSession(t0);
-	for (let i = 0; i < pairing.MAX_CODE_FAILURES; i++) {
+	var t0 = 1000;
+	var session = pairing.createSession(t0);
+	for (var i = 0; i < pairing.MAX_CODE_FAILURES; i++) {
 		pairing.checkCode(session, t0, 'XXXXXXXX');
 	}
 	assert.strictEqual(pairing.statusOf(session, t0), 'expired');
@@ -86,9 +88,9 @@ test('login rejects non-http URLs without a network call', function () {
 /* ── end-to-end against a stub Immich ── */
 
 function withServers(stubHandler, body) {
-	let session = null;
-	const stub = http.createServer(stubHandler);
-	const pairingServer = serverLib.createPairingServer({
+	var session = null;
+	var stub = http.createServer(stubHandler);
+	var pairingServer = serverLib.createPairingServer({
 		getSession: function () {
 			return session;
 		}
@@ -128,7 +130,7 @@ test('approve: full happy path stores token and pending→approved', function ()
 			res.end(JSON.stringify({accessToken: 'tok123'}));
 		},
 		function (ctx) {
-			const session = pairing.createSession(Date.now());
+			var session = pairing.createSession(Date.now());
 			ctx.setSession(session);
 			return postJson(ctx.pairingPort, '/approve', {
 				code: session.code,
@@ -138,7 +140,7 @@ test('approve: full happy path stores token and pending→approved', function ()
 			}).then(function (res) {
 				assert.strictEqual(res.status, 200);
 				assert.strictEqual(res.json.ok, true);
-				const result = pairing.consumeResult(session);
+				var result = pairing.consumeResult(session);
 				assert.strictEqual(result.accessToken, 'tok123');
 				assert.strictEqual(result.email, 'q@e.fr');
 				assert.strictEqual(result.baseUrl, 'http://127.0.0.1:' + ctx.stubPort);
@@ -154,7 +156,7 @@ test('approve: wrong password leaves the session pending for a retry', function 
 			res.end('{}');
 		},
 		function (ctx) {
-			const session = pairing.createSession(Date.now());
+			var session = pairing.createSession(Date.now());
 			ctx.setSession(session);
 			return postJson(ctx.pairingPort, '/approve', {
 				code: session.code,
@@ -176,7 +178,7 @@ test('approve: wrong code never reaches Immich', function () {
 			throw new Error('stub must not be called');
 		},
 		function (ctx) {
-			const session = pairing.createSession(Date.now());
+			var session = pairing.createSession(Date.now());
 			ctx.setSession(session);
 			return postJson(ctx.pairingPort, '/approve', {
 				code: 'WRONGCOD',
@@ -208,7 +210,7 @@ test('GET / serves the sign-in page', function () {
 		function (ctx) {
 			return new Promise(function (resolve, reject) {
 				http.get('http://127.0.0.1:' + ctx.pairingPort + '/?c=ABCD2345', function (res) {
-					let data = '';
+					var data = '';
 					res.on('data', function (c) {
 						data += c;
 					});
@@ -229,13 +231,13 @@ test('GET / serves the sign-in page', function () {
 
 /* ── runner ── */
 
-let failed = 0;
+var failed = 0;
 function run(index) {
 	if (index >= tests.length) {
 		console.log(failed === 0 ? '\nAll ' + tests.length + ' tests passed' : '\n' + failed + ' test(s) FAILED');
 		process.exit(failed === 0 ? 0 : 1);
 	}
-	const t = tests[index];
+	var t = tests[index];
 	Promise.resolve()
 		.then(function () {
 			return t.fn();
