@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/Seeky91/immich-tv-webos/releases/latest"><img src="https://img.shields.io/github/v/release/Seeky91/immich-tv-webos?label=release" alt="Latest release"></a>
   <a href="https://github.com/Seeky91/immich-tv-webos/releases"><img src="https://img.shields.io/github/downloads/Seeky91/immich-tv-webos/total?label=downloads" alt="Downloads"></a>
-  <img src="https://img.shields.io/badge/webOS-5.0%2B-a50034" alt="webOS 5.0+">
+  <img src="https://img.shields.io/badge/webOS-4.0%2B-a50034" alt="webOS 4.0+">
   <a href="LICENSE"><img src="https://img.shields.io/github/license/Seeky91/immich-tv-webos" alt="MIT license"></a>
 </p>
 
@@ -61,7 +61,7 @@ Captured on an LG OLED TV with the public [Immich demo](https://demo.immich.app)
 
 ## 📥 Installation
 
-You need an LG TV running **webOS 5.0 or newer** (2020 models onward) and an Immich server the TV can reach.
+You need an LG TV running **webOS 4.0 or newer** (2018 models onward) and an Immich server the TV can reach.
 
 ### Homebrew Channel (recommended)
 
@@ -140,6 +140,8 @@ The dev server runs from `http://localhost`, so the cross-origin rules above sti
 npm run lint       # ESLint (CI treats warnings as errors)
 npm run typecheck  # tsc --noEmit — must pass before committing
 npm run test       # unit tests
+npm run test-service # phone sign-in service tests
+npm run test-tools # build tooling tests (legacy CSS lowering)
 ```
 
 ### Package & deploy
@@ -160,9 +162,9 @@ Immich TV is a layered, dependency-injected React app built with [Enact](https:/
 - **`src/api/`** — the concrete `ImmichRepository`, the HTTP client, and the Immich response types.
 - **`src/hooks/`** — [TanStack Query](https://tanstack.com/query) wrappers for data (assets, albums, search, people, accounts) plus webOS UI hooks (D-pad keys, layout, media viewer).
 - **`src/views/` & `src/components/`** — the TV UI, navigated entirely through the webOS Spotlight (D-pad) focus system.
-- **`service/`** — a small webOS JS service (Node, zero dependencies) bundled in the `.ipk` that powers phone sign-in: it serves the pairing page over the local network and performs the Immich login from the TV. The app talks to it over the Luna bus; run `node service/dev.js` to develop against it in a desktop browser, and `npm run test-service` for its test suite.
+- **`service/`** — a small webOS JS service (Node, zero dependencies, plain ES5 so it runs on webOS 4's Node 0.12) bundled in the `.ipk` that powers phone sign-in: it serves the pairing page over the local network and performs the Immich login from the TV. The app talks to it over the Luna bus; run `node service/dev.js` to develop against it in a desktop browser, and `npm run test-service` for its test suite.
 
-The production bundle is post-processed by `tools/transpile-legacy.mjs`, which re-targets it to Chromium 68 (webOS 5) with esbuild and checks that the result parses. Enact's Babel pass skips `node_modules`, so dependencies shipping modern syntax (e.g. `??=`) would otherwise reach the bundle untransformed and fail to parse on older webOS engines, leaving a black screen.
+The production bundle is post-processed by `tools/transpile-legacy.mjs`, which re-targets it to Chromium 53 (webOS 4) with esbuild and checks that the result parses. Enact's Babel pass skips `node_modules`, so dependencies shipping modern syntax (e.g. `??=`) would otherwise reach the bundle untransformed and fail to parse on older webOS engines, leaving a black screen. The same step lowers the stylesheet with `tools/legacy-css.mjs` (newer color syntax, logical properties and selectors) and fails the build if anything Chromium 53 cannot parse is left; `src/polyfills.ts` covers the missing runtime APIs.
 
 ## ⚖️ Disclaimer
 
