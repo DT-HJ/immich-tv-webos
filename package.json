@@ -15,7 +15,8 @@
 		"license": "enact license",
 		"test": "enact test",
 		"test-watch": "enact test --watch",
-		"test-service": "node service/test.js"
+		"test-service": "node service/test.js",
+		"test-tools": "node --test tools/legacy-css.test.mjs"
 	},
 	"license": "MIT",
 	"repository": {
@@ -45,6 +46,14 @@
 	"browserslist": [
 		"Chrome >= 79"
 	],
+	"cssnano": {
+		"preset": [
+			"default",
+			{
+				"overrideBrowserslist": "Chrome >= 53"
+			}
+		]
+	},
 	"eslintConfig": {
 		"extends": "enact-proxy"
 	},
