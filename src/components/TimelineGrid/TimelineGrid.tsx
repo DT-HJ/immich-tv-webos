@@ -324,12 +324,14 @@ export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({
 							<div className={css.content} style={{height: geometry.totalHeight}}>
 								{visibleDays.map((day) => {
 									const layout = layoutMap.get(day.group.timeBucket);
+									const {firstCard, endCard} = cardRange(layout, day.top + headerHeight, windowTop, windowBottom, day.group.count);
 									return (
 										<div key={day.key} className={css.dateGroup} style={{transform: `translate3d(0, ${day.top}px, 0)`, ...insetStyle}}>
 											<DayGroupContent
 												group={day.group}
 												layout={layout}
-												{...cardRange(layout, day.top + headerHeight, windowTop, windowBottom, day.group.count)}
+												firstCard={firstCard}
+												endCard={endCard}
 												onSelect={handleSelectAsset}
 											/>
 										</div>
