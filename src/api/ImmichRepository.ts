@@ -42,9 +42,11 @@ function timelineScopeParams(scope: TimelineScope): string {
 
 // Immich v3.2+ structured search. Exact-match lists carry every case variant of a make or model
 // in one request; visibility matches the main timeline (no archive, no live-photo motion parts).
+// Unlike the legacy flat search, a `filter` request includes trashed assets unless told not to.
 function structuredFilter(filter: AssetFilter) {
 	return {
 		visibility: {eq: 'timeline'},
+		trashedAt: {eq: null},
 		...(filter.type ? {type: {eq: filter.type}} : {}),
 		...(filter.makes?.length ? {make: {in: filter.makes}} : {}),
 		...(filter.models?.length ? {model: {in: filter.models}} : {}),

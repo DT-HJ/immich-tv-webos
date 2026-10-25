@@ -241,7 +241,7 @@ describe('ImmichRepository filters', () => {
 		expect(init.method).toBe('POST');
 		expect(init.signal).toBe(controller.signal);
 		expect(JSON.parse(init.body)).toEqual({
-			filter: {visibility: {eq: 'timeline'}, type: {eq: 'VIDEO'}, make: {in: ['SONY', 'Sony']}},
+			filter: {visibility: {eq: 'timeline'}, trashedAt: {eq: null}, type: {eq: 'VIDEO'}, make: {in: ['SONY', 'Sony']}},
 			orderBy: {field: 'localDateTime', direction: 'desc'},
 			size: 500,
 			cursor: 'abc',
@@ -257,7 +257,7 @@ describe('ImmichRepository filters', () => {
 		const page = await repoWithFetch(fetch).searchFiltered({models: ['ILCE-7CM2']});
 		const body = JSON.parse(fetch.mock.calls[0][1].body);
 		expect(body.cursor).toBeUndefined();
-		expect(body.filter).toEqual({visibility: {eq: 'timeline'}, model: {in: ['ILCE-7CM2']}});
+		expect(body.filter).toEqual({visibility: {eq: 'timeline'}, trashedAt: {eq: null}, model: {in: ['ILCE-7CM2']}});
 		expect(page.nextCursor).toBeNull();
 	});
 });
