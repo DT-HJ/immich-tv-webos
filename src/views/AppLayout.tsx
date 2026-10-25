@@ -6,6 +6,7 @@ import MainPanel from './MainPanel';
 import AlbumsPanel from './AlbumsPanel';
 import PlacesPanel from './PlacesPanel';
 import SearchPanel from './SearchPanel';
+import FilterPanel from './FilterPanel';
 import type {View} from '../types/navigation';
 import css from './AppLayout.module.less';
 
@@ -59,6 +60,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({onOpenAccount, accountLetter, acco
 				{activeView === 'search' && (
 					<div className={css.panelActive}>
 						<SearchPanel contentWidth={contentWidth} />
+					</div>
+				)}
+				{activeView === 'filter' && (
+					<div className={css.panelActive}>
+						<FilterPanel contentWidth={contentWidth} />
 					</div>
 				)}
 			</ViewContainer>

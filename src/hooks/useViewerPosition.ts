@@ -14,7 +14,13 @@ const format = (rank: number, total: number) => `${(rank + 1).toLocaleString('en
  * the library-wide rank comes from bucket counts: assets in earlier months + rank within the
  * asset's own month.
  */
-export const useViewerPosition = (timeline: PositionTimeline | undefined, assets: TimelineAsset[], index: number): string => {
+export const useViewerPosition = (
+	timeline: PositionTimeline | undefined,
+	assets: TimelineAsset[],
+	index: number,
+	// Total of a paged collection whose later pages aren't loaded yet.
+	knownTotal?: number
+): string => {
 	const monthOffsets = useMemo(() => {
 		if (!timeline) return null;
 		const before = new Map<string, number>();
@@ -36,8 +42,8 @@ export const useViewerPosition = (timeline: PositionTimeline | undefined, assets
 	return useMemo(() => {
 		const asset = assets[index];
 		if (!asset) return '';
-		if (!monthOffsets) return format(index, assets.length);
+		if (!monthOffsets) return format(index, Math.max(knownTotal ?? 0, assets.length));
 		const month = monthKey(asset.localDateTime);
 		return format((monthOffsets.before.get(month) ?? 0) + index - (monthOffsets.loadedStart.get(month) ?? index), monthOffsets.total);
-	}, [assets, index, monthOffsets]);
+	}, [assets, index, monthOffsets, knownTotal]);
 };

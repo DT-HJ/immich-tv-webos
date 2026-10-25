@@ -1,11 +1,25 @@
 import {APIError, type APIClient} from './client';
 import type {ColumnarAssetResponse, ImmichAlbum, ImmichAlbumDetails, ImmichAsset, ImmichPerson, PeopleResponse} from './types';
 import type {PhotoRepository} from '../domain/PhotoRepository';
-import {MAIN_TIMELINE, type Album, type AlbumDetails, type Person, type Place, type TimelineAsset, type TimelineBucket, type TimelineScope} from '../domain/types';
+import {groupCaseVariants} from '../domain/cameraGroups';
+import {
+	MAIN_TIMELINE,
+	type Album,
+	type AlbumDetails,
+	type AssetFilter,
+	type AssetPage,
+	type CameraGroup,
+	type Person,
+	type Place,
+	type TimelineAsset,
+	type TimelineBucket,
+	type TimelineScope,
+} from '../domain/types';
 import {toDurationSeconds} from '../utils/FormattingService';
 
 interface ImmichSearchResponse {
-	assets: {items: ImmichAsset[]; nextPage?: string | null};
+	// nextCursor: structured (`filter`) requests, Immich v3.2+
+	assets: {items: ImmichAsset[]; nextPage?: string | null; nextCursor?: string | null};
 }
 
 const PEOPLE_LIMIT = 50;
@@ -13,6 +27,8 @@ const SEARCH_PAGE_SIZE = 500;
 // Pages are fetched sequentially and laid out in one go (cities have no timeline scope): keep it TV-sized.
 const METADATA_SEARCH_PAGE_SIZE = 1000;
 const METADATA_SEARCH_MAX_PAGES = 3;
+// Filter results page on demand as the grid scrolls, so a page only has to fill a few screens.
+const FILTER_PAGE_SIZE = 500;
 // Matches the official web client's main timeline: without visibility=timeline the server
 // defaults to ('archive','timeline') and archived assets leak in.
 const TIMELINE_FILTER_PARAMS = 'visibility=timeline&withPartners=true&withStacked=true';
@@ -22,6 +38,17 @@ function timelineScopeParams(scope: TimelineScope): string {
 	if (scope.albumId) return `albumId=${scope.albumId}&order=${scope.order ?? 'desc'}`;
 	if (scope.personId) return `personId=${scope.personId}&visibility=timeline`;
 	return TIMELINE_FILTER_PARAMS;
+}
+
+// Immich v3.2+ structured search. Exact-match lists carry every case variant of a make or model
+// in one request; visibility matches the main timeline (no archive, no live-photo motion parts).
+function structuredFilter(filter: AssetFilter) {
+	return {
+		visibility: {eq: 'timeline'},
+		...(filter.type ? {type: {eq: filter.type}} : {}),
+		...(filter.makes?.length ? {make: {in: filter.makes}} : {}),
+		...(filter.models?.length ? {model: {in: filter.models}} : {}),
+	};
 }
 
 const pad2 = (n: number): string => (n < 10 ? '0' + n : '' + n);
@@ -190,6 +217,42 @@ export class ImmichRepository implements PhotoRepository {
 			body: JSON.stringify({...filter, type: 'IMAGE', size}),
 		});
 		return this.visibleAssets(items);
+	}
+
+	public async getCameraMakes(): Promise<CameraGroup[]> {
+		const makes = await this.client.fetch<string[]>('/search/suggestions?type=camera-make');
+		return groupCaseVariants(Array.isArray(makes) ? makes : []);
+	}
+
+	// Suggestions are per exact make spelling ('Sony' and 'SONY' list different bodies): ask for each.
+	public async getCameraModels(makes: string[]): Promise<CameraGroup[]> {
+		const lists = await Promise.all(
+			makes.map((make) => this.client.fetch<string[]>(`/search/suggestions?type=camera-model&make=${encodeURIComponent(make)}`))
+		);
+		return groupCaseVariants(lists.flatMap((models) => (Array.isArray(models) ? models : [])));
+	}
+
+	public async searchFiltered(filter: AssetFilter, cursor?: string, signal?: AbortSignal): Promise<AssetPage> {
+		const response = await this.client.fetch<ImmichSearchResponse>('/search/metadata', {
+			method: 'POST',
+			// Day grouping uses localDateTime, so pages are cut on it too.
+			body: JSON.stringify({
+				filter: structuredFilter(filter),
+				orderBy: {field: 'localDateTime', direction: 'desc'},
+				size: FILTER_PAGE_SIZE,
+				cursor,
+			}),
+			signal,
+		});
+		return {assets: this.searchItemsToAssets(response), nextCursor: response.assets?.nextCursor ?? null};
+	}
+
+	public async countFiltered(filter: AssetFilter): Promise<number> {
+		const response = await this.client.fetch<{total: number}>('/search/statistics', {
+			method: 'POST',
+			body: JSON.stringify({filter: structuredFilter(filter)}),
+		});
+		return response.total;
 	}
 
 	private searchItemsToAssets(response: ImmichSearchResponse): TimelineAsset[] {

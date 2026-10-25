@@ -1,0 +1,39 @@
+@import '../styles/_theme.less';
+
+.filterPanel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
+
+.controls {
+	flex-shrink: 0;
+	padding: 32px 0 0 @page-inset-x;
+}
+
+.summary {
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: row;
+	align-items: baseline;
+	padding: 24px @page-inset-x 8px;
+}
+
+.summaryTitle {
+	font-size: var(--font-title);
+	color: @text;
+}
+
+.summaryCount {
+	margin-left: 24px;
+	font-size: var(--font-caption);
+	color: @text-muted;
+}
+
+.results {
+	flex: 1;
+	overflow: hidden;
+	min-height: 0;
+	position: relative;
+}

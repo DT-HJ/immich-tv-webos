@@ -1,4 +1,4 @@
-type AssetType = 'IMAGE' | 'VIDEO';
+export type AssetType = 'IMAGE' | 'VIDEO';
 
 export interface TimelineAsset {
 	id: string;
@@ -56,4 +56,23 @@ export interface Person {
 	id: string;
 	name: string;
 	assetCount: number;
+}
+
+// One camera make or model as shown to the user; `values` are the exact spellings stored by the
+// server (EXIF case varies by firmware: 'Sony'/'SONY', 'samsung'/'Samsung'/'SAMSUNG').
+export interface CameraGroup {
+	label: string;
+	values: string[];
+}
+
+// Library-wide filter; an unset field matches everything.
+export interface AssetFilter {
+	type?: AssetType;
+	makes?: string[];
+	models?: string[];
+}
+
+export interface AssetPage {
+	assets: TimelineAsset[];
+	nextCursor: string | null;
 }

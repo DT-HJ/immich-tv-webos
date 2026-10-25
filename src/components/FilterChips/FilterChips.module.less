@@ -1,0 +1,61 @@
+@import '../../styles/_theme.less';
+
+.row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	min-width: 0;
+}
+
+.label {
+	flex: 0 0 auto;
+	width: 200px;
+	font-size: var(--font-caption);
+	color: @text-subtle;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+.chipsWrapper {
+	flex: 1;
+	min-width: 0;
+	-webkit-mask-image: linear-gradient(to right, black calc(100% - 96px), transparent);
+	mask-image: linear-gradient(to right, black calc(100% - 96px), transparent);
+}
+
+.chips {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 100%;
+	// Room for the focus ring and scale on both ends.
+	padding: 0 120px 0 12px;
+}
+
+.chip {
+	flex-shrink: 0;
+	margin-right: 20px;
+	padding: 14px 40px;
+	border: none;
+	border-radius: @radius-pill;
+	background: @surface;
+	color: @text-muted;
+	font-family: inherit;
+	font-size: var(--font-caption);
+	white-space: nowrap;
+	cursor: pointer;
+	transition: transform 0.15s ease-out;
+
+	&.selected {
+		background: @surface-raised;
+		color: @text;
+		box-shadow: inset 0 0 0 4px @accent;
+	}
+
+	&:focus {
+		outline: none;
+		transform: scale(@focus-scale);
+		background: @focus-bg;
+		color: @focus-text;
+	}
+}

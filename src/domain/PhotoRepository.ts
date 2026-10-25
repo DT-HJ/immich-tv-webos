@@ -1,4 +1,4 @@
-import type {Album, AlbumDetails, Person, Place, TimelineAsset, TimelineBucket, TimelineScope} from './types';
+import type {Album, AlbumDetails, AssetFilter, AssetPage, CameraGroup, Person, Place, TimelineAsset, TimelineBucket, TimelineScope} from './types';
 
 export interface PhotoRepository {
 	getBuckets(scope?: TimelineScope): Promise<TimelineBucket[]>;
@@ -14,6 +14,11 @@ export interface PhotoRepository {
 	searchSmart(query: string): Promise<TimelineAsset[]>;
 	searchByCity(city: string): Promise<TimelineAsset[]>;
 	searchRandomImages(scope: TimelineScope, size: number): Promise<TimelineAsset[]>;
+
+	getCameraMakes(): Promise<CameraGroup[]>;
+	getCameraModels(makes: string[]): Promise<CameraGroup[]>;
+	searchFiltered(filter: AssetFilter, cursor?: string, signal?: AbortSignal): Promise<AssetPage>;
+	countFiltered(filter: AssetFilter): Promise<number>;
 
 	thumbnailUrl(assetId: string): string;
 	previewUrl(assetId: string): string;

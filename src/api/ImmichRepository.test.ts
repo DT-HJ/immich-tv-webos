@@ -203,6 +203,65 @@ describe('ImmichRepository.searchRandomImages', () => {
 	});
 });
 
+describe('ImmichRepository filters', () => {
+	test('getCameraMakes folds case variants and drops placeholders', async () => {
+		const fetch = jest.fn().mockResolvedValue(['SONY', 'Sony', 'none', 'samsung', 'SAMSUNG']);
+		const makes = await repoWithFetch(fetch).getCameraMakes();
+		expect(fetch).toHaveBeenCalledWith('/search/suggestions?type=camera-make');
+		expect(makes).toEqual([
+			{label: 'SAMSUNG', values: ['samsung', 'SAMSUNG']},
+			{label: 'Sony', values: ['SONY', 'Sony']},
+		]);
+	});
+
+	test('getCameraModels asks for each exact make spelling and merges the lists', async () => {
+		const fetch = jest.fn().mockResolvedValueOnce(['ILCE-7CM2', 'DSC-W220']).mockResolvedValueOnce(['ILCE-7CM2']);
+		const models = await repoWithFetch(fetch).getCameraModels(['SONY', 'Sony']);
+		expect(fetch).toHaveBeenNthCalledWith(1, '/search/suggestions?type=camera-model&make=SONY');
+		expect(fetch).toHaveBeenNthCalledWith(2, '/search/suggestions?type=camera-model&make=Sony');
+		expect(models.map((m) => m.label)).toEqual(['DSC-W220', 'ILCE-7CM2']);
+	});
+
+	test('searchFiltered sends one structured query with every variant and pages by cursor', async () => {
+		const fetch = jest.fn().mockResolvedValue({
+			assets: {
+				items: [
+					{id: 'v1', type: 'VIDEO', fileCreatedAt: '2026-10-18T08:00:00Z', localDateTime: '2026-10-18T23:59:00.000Z', duration: 373373, width: 3840, height: 2160, visibility: 'timeline'},
+					{id: 'motion', type: 'VIDEO', fileCreatedAt: '2026-10-18T08:00:00Z', duration: 2000, visibility: 'hidden'},
+				],
+				nextCursor: 'next',
+			},
+		});
+		const controller = new AbortController();
+
+		const page = await repoWithFetch(fetch).searchFiltered({type: 'VIDEO', makes: ['SONY', 'Sony']}, 'abc', controller.signal);
+
+		const [endpoint, init] = fetch.mock.calls[0];
+		expect(endpoint).toBe('/search/metadata');
+		expect(init.method).toBe('POST');
+		expect(init.signal).toBe(controller.signal);
+		expect(JSON.parse(init.body)).toEqual({
+			filter: {visibility: {eq: 'timeline'}, type: {eq: 'VIDEO'}, make: {in: ['SONY', 'Sony']}},
+			orderBy: {field: 'localDateTime', direction: 'desc'},
+			size: 500,
+			cursor: 'abc',
+		});
+		expect(page).toEqual({
+			assets: [{id: 'v1', type: 'VIDEO', ratio: 3840 / 2160, localDateTime: '2026-10-18T23:59:00.000Z', durationSeconds: 373.373}],
+			nextCursor: 'next',
+		});
+	});
+
+	test('searchFiltered omits the cursor on the first page and reports the last one', async () => {
+		const fetch = jest.fn().mockResolvedValue({assets: {items: []}});
+		const page = await repoWithFetch(fetch).searchFiltered({models: ['ILCE-7CM2']});
+		const body = JSON.parse(fetch.mock.calls[0][1].body);
+		expect(body.cursor).toBeUndefined();
+		expect(body.filter).toEqual({visibility: {eq: 'timeline'}, model: {in: ['ILCE-7CM2']}});
+		expect(page.nextCursor).toBeNull();
+	});
+});
+
 describe('ImmichRepository image URLs', () => {
 	test('request the edited rendition so Immich v3 crops/rotations show on the TV', () => {
 		const repo = new ImmichRepository(new APIClient(apiKeyConfig));

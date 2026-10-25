@@ -40,6 +40,10 @@ interface TimelineGridProps {
 	groups?: DayGroup[];
 	contentWidth: number;
 	timeline?: TimelineGridTimeline;
+	// Paged `groups`: called while the end of what is loaded is near (scrolling or in the viewer).
+	onNearEnd?: () => void;
+	// Size of the whole paged collection, when known, for the viewer's "rank / total".
+	totalCount?: number;
 }
 
 export interface TimelineGridHandle {
@@ -59,6 +63,8 @@ const EMPTY_MONTHS: ReadonlyMap<string, DayGroup[]> = new Map();
 // Scroll offsets snap to whole pixels while month offsets are fractional, so a jump or a
 // re-anchor can leave the previous month's last few pixels at the very top of the viewport.
 const ACTIVE_MONTH_PROBE_PX = 8;
+// The viewer asks for the next page this many assets before the last loaded one.
+const VIEWER_NEAR_END_ASSETS = 20;
 
 // Spotlight treats the scroller as an overflow container: it focuses cards without native
 // scroll-into-view (useTimelineViewportFocus owns scrolling) and only enters on visible cards.
@@ -102,7 +108,7 @@ function cardRange(layout: JustifiedLayoutResult | undefined, gridTop: number, w
 	return {firstCard, endCard};
 }
 
-export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({groups, contentWidth, timeline}, ref) => {
+export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({groups, contentWidth, timeline, onNearEnd, totalCount: knownTotal}, ref) => {
 	const dayGroups = useMemo(
 		() => (timeline ? timeline.allBuckets.flatMap((bucket) => timeline.loadedMonths.get(bucket.timeBucket) ?? []) : groups ?? EMPTY_GROUPS),
 		[groups, timeline]
@@ -207,6 +213,13 @@ export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({
 		timeline.requestMonths(monthsBetween(scrollTop - viewportHeight, scrollTop + 2 * viewportHeight, 1));
 	}, [timeline, monthsBetween, scrollTop, viewportHeight]);
 
+	// Paged groups: the bottom of the overscan window reaching the end asks for more. A layout
+	// that hasn't measured yet (height 0) would otherwise ask page after page.
+	useEffect(() => {
+		if (timeline || !onNearEnd || geometry.totalHeight <= 0) return;
+		if (windowBottom >= geometry.totalHeight) onNearEnd();
+	}, [timeline, onNearEnd, geometry.totalHeight, windowBottom]);
+
 	const handleScroll = useCallback(() => {
 		const node = scrollRef.current;
 		if (!node) return;
@@ -251,6 +264,11 @@ export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({
 		timeline.requestMonths(neighbours.map((bucket) => bucket.timeBucket));
 	}, [viewer.state, flatAssets, timeline]);
 
+	useEffect(() => {
+		if (timeline || !onNearEnd || !viewer.state) return;
+		if (viewer.state.assetIndex >= totalCount - VIEWER_NEAR_END_ASSETS) onNearEnd();
+	}, [timeline, onNearEnd, viewer.state, totalCount]);
+
 	const openViewer = viewer.open;
 	const handleSelectAsset = useCallback((asset: TimelineAsset) => openViewer(asset.id), [openViewer]);
 
@@ -278,7 +296,7 @@ export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({
 	// cards at the row edges aren't cropped.
 	const insetStyle = useMemo(() => ({paddingLeft: ri.scale(GRID_INSET_LEFT_PX), paddingRight: ri.scale(GRID_INSET_RIGHT_PX)}), []);
 
-	const viewerPosition = useViewerPosition(timeline, flatAssets, viewer.state?.assetIndex ?? -1);
+	const viewerPosition = useViewerPosition(timeline, flatAssets, viewer.state?.assetIndex ?? -1, knownTotal);
 
 	useImperativeHandle(ref, () => ({startSlideshow: () => setSlideshow({start: null, fromViewer: false})}), []);
 

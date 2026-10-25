@@ -30,6 +30,8 @@ const ViewerContainer = createSpotlightContainer({enterTo: 'last-focused'});
 const swallowKey = () => {};
 const focusStage = () => forceFocus(STAGE_SPOTLIGHT_ID);
 const focusActionBar = () => forceFocus(ACTION_BAR_SPOTLIGHT_ID);
+// How long the info overlay stays up on a video once it starts (or after Up re-shows it).
+const VIDEO_INFO_FLASH_MS = 4000;
 
 export const MediaViewer: React.FC<MediaViewerProps> = React.memo(({getAssetAt, totalCount, currentIndex, position, onClose, onNavigate, onStartSlideshow}) => {
 	const repository = useRepository();
@@ -49,16 +51,16 @@ export const MediaViewer: React.FC<MediaViewerProps> = React.memo(({getAssetAt, 
 	const [rotation, rotate] = useAssetRotation(isVideo ? undefined : asset?.id);
 	const controlsRef = useRef<HTMLDivElement>(null);
 
-	// Auto-hide is for still images only. Video keeps its always-visible MediaControls and
-	// relies on Sandstone VideoPlayer's own auto-hide (OK/Select is play/pause there).
-	const {visible: controlsVisible, show: showControls, hide: hideControls} = useAutoHideControls({enabled: !isVideo, controlsRef});
-	const inActionBar = !isVideo && controlsVisible && actionBarFocused;
+	// Auto-hide is for still images only: on video OK/Down belong to Sandstone's transport bar,
+	// so the reveal keys can't be swallowed. Video derives its chrome below instead.
+	const {visible: photoControlsVisible, show: showControls, hide: hideControls} = useAutoHideControls({enabled: !isVideo, controlsRef});
+	const inActionBar = !isVideo && photoControlsVisible && actionBarFocused;
 
 	// The bar faded out under an idle focus: hand it back to the stage rather than leave it on
 	// a hidden button.
 	useEffect(() => {
-		if (!controlsVisible && actionBarFocused) focusStage();
-	}, [controlsVisible, actionBarFocused]);
+		if (!photoControlsVisible && actionBarFocused) focusStage();
+	}, [photoControlsVisible, actionBarFocused]);
 
 	// Sandstone transport-bar visibility (video) drives arrow-key semantics: hidden →
 	// left/right page between media; visible → Sandstone seeks.
@@ -74,13 +76,28 @@ export const MediaViewer: React.FC<MediaViewerProps> = React.memo(({getAssetAt, 
 	// photo), which would leave the state stuck on "visible". State adjustment during
 	// render, not in an effect (`react-hooks/set-state-in-effect`, Enact CI strict).
 	const [prevAssetId, setPrevAssetId] = useState(asset?.id);
+	// Bumped to (re)start the video info flash: on arrival, and on Up while the bar is closed.
+	const [videoInfoFlash, setVideoInfoFlash] = useState(0);
+	const [expiredVideoInfoFlash, setExpiredVideoInfoFlash] = useState(-1);
 	if (asset?.id !== prevAssetId) {
 		setPrevAssetId(asset?.id);
 		setVideoControlsVisible(false);
 		// The bar may unmount (photo → video) without a blur reaching us.
 		setActionBarFocused(false);
+		setVideoInfoFlash((n) => n + 1);
 	}
 	const videoControlsOpen = isVideo && videoControlsVisible;
+
+	// The video chrome (date, position, paging arrows) used to stay on screen for the whole
+	// playback. It now flashes on arrival and otherwise follows the transport bar.
+	useEffect(() => {
+		if (!isVideo) return undefined;
+		const timer = window.setTimeout(() => setExpiredVideoInfoFlash(videoInfoFlash), VIDEO_INFO_FLASH_MS);
+		return () => window.clearTimeout(timer);
+	}, [isVideo, videoInfoFlash]);
+	const flashVideoInfo = useCallback(() => setVideoInfoFlash((n) => n + 1), []);
+	const videoInfoVisible = expiredVideoInfoFlash !== videoInfoFlash;
+	const controlsVisible = isVideo ? videoControlsOpen || videoInfoVisible : photoControlsVisible;
 
 	// Back closes the transport bar if open, the viewer otherwise. Our Back bridge
 	// (capture + stopImmediatePropagation) preempts Sandstone's Cancelable, so the
@@ -102,7 +119,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = React.memo(({getAssetAt, 
 		// Up/down must never reach Spotlight unhandled, or it leaks focus to the grid behind the
 		// overlay. Unassigned here, they are reveal keys (useAutoHideControls) or belong to the
 		// Sandstone video bar.
-		onArrowUp: isVideo ? (videoControlsOpen ? undefined : swallowKey) : inActionBar ? focusStage : controlsVisible ? swallowKey : undefined,
+		onArrowUp: isVideo ? (videoControlsOpen ? undefined : flashVideoInfo) : inActionBar ? focusStage : controlsVisible ? swallowKey : undefined,
 		onArrowDown: isVideo ? undefined : inActionBar ? swallowKey : controlsVisible ? focusActionBar : undefined,
 	});
 
