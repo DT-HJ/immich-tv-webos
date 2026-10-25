@@ -19,8 +19,22 @@ describe('groupCaseVariants', () => {
 		expect(groupCaseVariants(['fujifilm', 'FUJIFILM'])).toEqual([{label: 'FUJIFILM', values: ['fujifilm', 'FUJIFILM']}]);
 	});
 
+	it('folds company suffixes under the bare name', () => {
+		expect(groupCaseVariants(['Apple Computer Inc.', 'Apple'])).toEqual([{label: 'Apple', values: ['Apple Computer Inc.', 'Apple']}]);
+		expect(groupCaseVariants(['FUJIFILM Corporation', 'FUJIFILM'])).toEqual([{label: 'FUJIFILM', values: ['FUJIFILM Corporation', 'FUJIFILM']}]);
+		expect(groupCaseVariants(['SAMSUNG Co., Ltd.', 'Samsung'])).toEqual([{label: 'Samsung', values: ['SAMSUNG Co., Ltd.', 'Samsung']}]);
+	});
+
+	it('keeps a lone suffixed name as written', () => {
+		expect(groupCaseVariants(['NIKON CORPORATION'])).toEqual([{label: 'NIKON CORPORATION', values: ['NIKON CORPORATION']}]);
+	});
+
 	it('does not merge different names that share a prefix', () => {
-		expect(groupCaseVariants(['Apple', 'Apple Computer Inc.']).map((g) => g.label)).toEqual(['Apple', 'Apple Computer Inc.']);
+		expect(groupCaseVariants(['Sony', 'Sony Ericsson', 'SK communications']).map((g) => g.label)).toEqual([
+			'SK communications',
+			'Sony',
+			'Sony Ericsson',
+		]);
 	});
 
 	it('drops placeholders and duplicates, and folds surrounding spaces', () => {
