@@ -3,18 +3,31 @@ import {useCallback, useMemo} from 'react';
 import {ASSETS_QUERY_CONFIG, useRepositoryQuery} from './queryConfig';
 import {useRepository} from '../domain/RepositoryContext';
 import {groupAssetsByDay} from '../domain/transforms';
-import type {AssetFilter, DayGroup} from '../domain/types';
+import type {AssetFilter, CameraGroup, DayGroup} from '../domain/types';
 
-const filterKey = ({type, makes, models}: AssetFilter) => [type ?? '', (makes ?? []).join('\u0000'), (models ?? []).join('\u0000')];
+// Every field of the filter: a narrower date, person or album must not reuse a cached result.
+const filterKey = (filter: AssetFilter) => [JSON.stringify(filter)];
 
 export const useCameraMakes = () => useRepositoryQuery(['camera-makes'], (r) => r.getCameraMakes(), {staleTime: 30 * 60 * 1000});
 
-// `null` while no make is chosen: models only make sense within one.
-export const useCameraModels = (makes: string[] | null) =>
-	useRepositoryQuery(['camera-models', (makes ?? []).join('\u0000')], (r) => r.getCameraModels(makes!), {
-		enabled: !!makes,
-		staleTime: 30 * 60 * 1000,
-	});
+const NO_MODELS: ReadonlyMap<string, CameraGroup[]> = new Map();
+
+/** Models of each chosen make, by make label (each make keeps its own list, for per-make chips). */
+export const useCameraModels = (makes: readonly CameraGroup[]) => {
+	const query = useRepositoryQuery(
+		['camera-models', ...makes.map((make) => make.values.join('\u0000'))],
+		async (r) => new Map(await Promise.all(makes.map(async (make) => [make.label, await r.getCameraModels(make.values)] as const))),
+		{enabled: makes.length > 0, staleTime: 30 * 60 * 1000}
+	);
+	return {modelsByMake: (query.data as ReadonlyMap<string, CameraGroup[]> | undefined) ?? NO_MODELS, isLoading: makes.length > 0 && query.isLoading};
+};
+
+/** Years with at least one asset, newest first. */
+export const useLibraryYears = () =>
+	useRepositoryQuery(['filter-years'], async (r) => {
+		const years = (await r.getBuckets()).map((bucket) => Number(bucket.timeBucket.slice(0, 4)));
+		return years.filter((year, i) => year > 0 && years.indexOf(year) === i).sort((a, b) => b - a);
+	}, {staleTime: 30 * 60 * 1000});
 
 // Library-wide total for the filter. Optional: the API key needs `asset.statistics`, and the
 // panel falls back to the loaded count without it.

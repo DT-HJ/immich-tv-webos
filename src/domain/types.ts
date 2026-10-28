@@ -65,11 +65,28 @@ export interface CameraGroup {
 	values: string[];
 }
 
-// Library-wide filter; an unset field matches everything.
+// One chosen camera make (every spelling of it), optionally narrowed to some of its models and/or
+// to its assets without a model. Neither set: the whole make.
+export interface CameraFilter {
+	makes: string[];
+	models?: string[];
+	noModel?: boolean;
+}
+
+// Library-wide filter; an unset field matches everything. Fields combine with AND; the camera
+// choices (`cameras`, `noMake`) are alternatives to each other.
 export interface AssetFilter {
 	type?: AssetType;
-	makes?: string[];
-	models?: string[];
+	favorites?: boolean;
+	// Capture instant bounds (ISO): `takenFrom` inclusive, `takenBefore` exclusive.
+	takenFrom?: string;
+	takenBefore?: string;
+	cameras?: CameraFilter[];
+	// Assets with no camera make (or a placeholder such as '' or 'none').
+	noMake?: boolean;
+	// Any of these people / albums.
+	personIds?: string[];
+	albumIds?: string[];
 }
 
 export interface AssetPage {

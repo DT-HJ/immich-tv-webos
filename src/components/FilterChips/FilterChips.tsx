@@ -21,7 +21,8 @@ export interface FilterChipOption<T> {
 interface FilterChipsProps<T> {
 	label: string;
 	options: FilterChipOption<T>[];
-	selectedKey: string;
+	// Several chips may be on (a multi-choice row); the row lands on the first of them.
+	selectedKeys: readonly string[];
 	onSelect: (value: T) => void;
 }
 
@@ -44,15 +45,15 @@ const Chip = <T,>({option, isSelected, onSelect}: ChipProps<T>) => {
 	);
 };
 
-/** One labelled row of single-choice chips, scrolling sideways when it outgrows the screen. */
-export const FilterChips = <T,>({label, options, selectedKey, onSelect}: FilterChipsProps<T>) => (
+/** One labelled row of chips, scrolling sideways when it outgrows the screen. */
+export const FilterChips = <T,>({label, options, selectedKeys, onSelect}: FilterChipsProps<T>) => (
 	<RowContainer className={css.row}>
 		<span className={css.label}>{label}</span>
 		<div className={css.chipsWrapper}>
 			<Scroller direction="horizontal" scrollMode="native" horizontalScrollbar="hidden" style={{height: ri.scale(112)}}>
 				<div className={css.chips}>
 					{options.map((option) => (
-						<Chip key={option.key} option={option} isSelected={option.key === selectedKey} onSelect={onSelect} />
+						<Chip key={option.key} option={option} isSelected={selectedKeys.indexOf(option.key) >= 0} onSelect={onSelect} />
 					))}
 					{/* Chromium < 91 leaves a flex scroller's end padding out of its scroll range. */}
 					<div className={css.endSpacer} />

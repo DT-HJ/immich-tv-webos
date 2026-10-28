@@ -234,14 +234,14 @@ describe('ImmichRepository filters', () => {
 		});
 		const controller = new AbortController();
 
-		const page = await repoWithFetch(fetch).searchFiltered({type: 'VIDEO', makes: ['SONY', 'Sony']}, 'abc', controller.signal);
+		const page = await repoWithFetch(fetch).searchFiltered({type: 'VIDEO', cameras: [{makes: ['SONY', 'Sony']}]}, 'abc', controller.signal);
 
 		const [endpoint, init] = fetch.mock.calls[0];
 		expect(endpoint).toBe('/search/metadata');
 		expect(init.method).toBe('POST');
 		expect(init.signal).toBe(controller.signal);
 		expect(JSON.parse(init.body)).toEqual({
-			filter: {visibility: {eq: 'timeline'}, trashedAt: {eq: null}, type: {eq: 'VIDEO'}, make: {in: ['SONY', 'Sony']}},
+			filter: {visibility: {eq: 'timeline'}, trashedAt: {eq: null}, type: {eq: 'VIDEO'}, or: [{make: {in: ['SONY', 'Sony']}}]},
 			orderBy: {field: 'localDateTime', direction: 'desc'},
 			size: 500,
 			cursor: 'abc',
@@ -254,11 +254,40 @@ describe('ImmichRepository filters', () => {
 
 	test('searchFiltered omits the cursor on the first page and reports the last one', async () => {
 		const fetch = jest.fn().mockResolvedValue({assets: {items: []}});
-		const page = await repoWithFetch(fetch).searchFiltered({models: ['ILCE-7CM2']});
+		const page = await repoWithFetch(fetch).searchFiltered({favorites: true});
 		const body = JSON.parse(fetch.mock.calls[0][1].body);
 		expect(body.cursor).toBeUndefined();
-		expect(body.filter).toEqual({visibility: {eq: 'timeline'}, trashedAt: {eq: null}, model: {in: ['ILCE-7CM2']}});
+		expect(body.filter).toEqual({visibility: {eq: 'timeline'}, trashedAt: {eq: null}, isFavorite: {eq: true}});
 		expect(page.nextCursor).toBeNull();
+	});
+
+	test('camera choices are OR branches; date, people and albums narrow all of them', async () => {
+		const fetch = jest.fn().mockResolvedValue({total: 3});
+		await repoWithFetch(fetch).countFiltered({
+			takenFrom: '2025-12-31T15:00:00.000Z',
+			takenBefore: '2026-12-31T15:00:00.000Z',
+			cameras: [{makes: ['SONY', 'Sony'], models: ['ILCE-7CM2'], noModel: true}, {makes: ['Panasonic']}],
+			noMake: true,
+			personIds: ['p1'],
+			albumIds: ['a1', 'a2'],
+		});
+		const placeholders = ['', 'none', 'None', 'NONE', 'unknown', 'Unknown', 'UNKNOWN'];
+		const sony = {make: {in: ['SONY', 'Sony']}};
+		expect(JSON.parse(fetch.mock.calls[0][1].body).filter).toEqual({
+			visibility: {eq: 'timeline'},
+			trashedAt: {eq: null},
+			takenAt: {gte: '2025-12-31T15:00:00.000Z', lt: '2026-12-31T15:00:00.000Z'},
+			personIds: {any: ['p1']},
+			albumIds: {any: ['a1', 'a2']},
+			or: [
+				{...sony, model: {in: ['ILCE-7CM2']}},
+				{...sony, model: {eq: null}},
+				{...sony, model: {in: placeholders}},
+				{make: {in: ['Panasonic']}},
+				{make: {eq: null}},
+				{make: {in: placeholders}},
+			],
+		});
 	});
 });
 

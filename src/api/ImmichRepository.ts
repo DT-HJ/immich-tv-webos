@@ -43,13 +43,42 @@ function timelineScopeParams(scope: TimelineScope): string {
 // Immich v3.2+ structured search. Exact-match lists carry every case variant of a make or model
 // in one request; visibility matches the main timeline (no archive, no live-photo motion parts).
 // Unlike the legacy flat search, a `filter` request includes trashed assets unless told not to.
+// Spellings some cameras and apps store instead of leaving the tag empty. The server matches
+// exactly, so "no make / no model" is NULL or one of these.
+const EXIF_PLACEHOLDERS = ['', 'none', 'None', 'NONE', 'unknown', 'Unknown', 'UNKNOWN'];
+
+const missing = (field: 'make' | 'model', base: object = {}) => [
+	{...base, [field]: {eq: null}},
+	{...base, [field]: {in: EXIF_PLACEHOLDERS}},
+];
+
+// The camera choices are alternatives: they go in the single `or` list structured search allows,
+// each branch being itself an AND.
+function cameraBranches(filter: AssetFilter): object[] {
+	const branches: object[] = [];
+	for (const camera of filter.cameras ?? []) {
+		const make = {make: {in: camera.makes}};
+		if (camera.models?.length) branches.push({...make, model: {in: camera.models}});
+		if (camera.noModel) branches.push(...missing('model', make));
+		if (!camera.models?.length && !camera.noModel) branches.push(make);
+	}
+	if (filter.noMake) branches.push(...missing('make'));
+	return branches;
+}
+
 function structuredFilter(filter: AssetFilter) {
+	const or = cameraBranches(filter);
 	return {
 		visibility: {eq: 'timeline'},
 		trashedAt: {eq: null},
 		...(filter.type ? {type: {eq: filter.type}} : {}),
-		...(filter.makes?.length ? {make: {in: filter.makes}} : {}),
-		...(filter.models?.length ? {model: {in: filter.models}} : {}),
+		...(filter.favorites ? {isFavorite: {eq: true}} : {}),
+		...(filter.takenFrom || filter.takenBefore
+			? {takenAt: {...(filter.takenFrom ? {gte: filter.takenFrom} : {}), ...(filter.takenBefore ? {lt: filter.takenBefore} : {})}}
+			: {}),
+		...(filter.personIds?.length ? {personIds: {any: filter.personIds}} : {}),
+		...(filter.albumIds?.length ? {albumIds: {any: filter.albumIds}} : {}),
+		...(or.length ? {or} : {}),
 	};
 }
 
