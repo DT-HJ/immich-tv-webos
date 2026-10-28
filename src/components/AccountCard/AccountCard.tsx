@@ -3,6 +3,7 @@ import {SpottableDiv} from '../../utils/spotlight';
 import type {Account} from '../../utils/accountsStore';
 import {deriveLabel, deriveInitial, pickGradient, hostFromUrl} from '../../utils/accountVisual';
 import css from './AccountCard.module.less';
+import {t} from '../../i18n/i18n';
 
 interface AccountCardProps {
 	account: Account;
@@ -25,7 +26,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({account, isActive, isDe
 			className={[css.card, isActive ? css.active : ''].filter(Boolean).join(' ')}
 			onClick={handleClick}
 		>
-			{isDefault ? <span className={css.badge}>DEFAULT</span> : null}
+			{isDefault ? <span className={css.badge}>{t('account.defaultBadge')}</span> : null}
 			<div className={css.avatar} style={{background: gradient}}>
 				{letter}
 			</div>

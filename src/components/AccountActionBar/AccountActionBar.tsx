@@ -40,7 +40,7 @@ export const AccountActionBar: React.FC<Props> = ({
 		<div className={css.bar}>
 			{!isActive ? <Button onClick={handleSwitch}>{t('account.switch')}</Button> : null}
 			<Button onClick={handleSetDefault} disabled={isDefault}>
-				Set as default
+				{t('account.setDefault')}
 			</Button>
 			<Button onClick={handleRemove} backgroundOpacity="transparent">
 				{isActive ? t('account.signOut') : t('account.remove')}
