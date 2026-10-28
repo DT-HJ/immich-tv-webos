@@ -11,3 +11,13 @@
 	--font-body:    1rem;     // 24px @ FHD
 	--font-caption: 0.833rem; // 20px @ FHD
 }
+
+// webOS ships its own "Sandstone Icons", and Sandstone's @font-face prefers that local() copy
+// to the font it bundles. The copy on webOS 6 predates glyphs Sandstone 2.9 draws (location,
+// camera, exit come out as empty boxes), so the same family is declared again with the bundled
+// file only. Later @font-face rules win for the same family and descriptors.
+@font-face {
+	font-family: 'Sandstone Icons';
+	src: url('~@enact/sandstone/fonts/Sandstone_Icons.ttf') format('truetype');
+	font-weight: normal;
+}
