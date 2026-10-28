@@ -10,6 +10,30 @@ export interface TimelineAsset {
 	durationSeconds: number | null;
 	city?: string | null;
 	country?: string | null;
+	isFavorite?: boolean;
+}
+
+/** Everything the viewer's details panel shows about one asset (`GET /assets/{id}`). */
+export interface AssetDetails {
+	id: string;
+	fileName: string | null;
+	make: string | null;
+	model: string | null;
+	lens: string | null;
+	fNumber: number | null;
+	exposureTime: string | null;
+	iso: number | null;
+	focalLength: number | null;
+	width: number | null;
+	height: number | null;
+	fileSize: number | null;
+	city: string | null;
+	state: string | null;
+	country: string | null;
+	description: string | null;
+	// Named people only: unnamed faces mean nothing in a caption.
+	people: string[];
+	isFavorite: boolean;
 }
 
 export interface TimelineBucket {
@@ -29,6 +53,8 @@ export interface Album {
 	description: string;
 	albumThumbnailAssetId: string | null;
 	assetCount: number;
+	// Capture time of the album's newest asset (ISO), when the server sends it.
+	endDate?: string | null;
 }
 
 export type AssetOrder = 'asc' | 'desc';

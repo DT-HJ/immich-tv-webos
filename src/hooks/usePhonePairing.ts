@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import type {PairingDriver, PairedAccountResult} from '../pairing/types';
 import type {AuthSubmitResult} from '../api/types';
+import {t} from '../i18n/i18n';
 
 export type PhonePairingState =
 	| {phase: 'starting'}
@@ -60,7 +61,7 @@ export const usePhonePairing = (
 							return;
 						}
 						if (res.state === 'expired') {
-							update({phase: 'error', message: 'The code expired. Start again.', atStart: false});
+							update({phase: 'error', message: t('auth.codeExpired'), atStart: false});
 							return;
 						}
 						update({phase: 'finalizing'});
@@ -75,7 +76,7 @@ export const usePhonePairing = (
 						if (disposed) return;
 						pollFailures += 1;
 						if (pollFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
-							update({phase: 'error', message: 'Lost contact with the pairing service.', atStart: false});
+							update({phase: 'error', message: t('auth.pairingLost'), atStart: false});
 							return;
 						}
 						poll();
@@ -93,7 +94,7 @@ export const usePhonePairing = (
 			error => {
 				update({
 					phase: 'error',
-					message: error instanceof Error ? error.message : 'Could not start phone sign-in',
+					message: error instanceof Error ? error.message : t('auth.pairingFailed'),
 					atStart: true,
 				});
 			},

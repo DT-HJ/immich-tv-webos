@@ -9,6 +9,7 @@ import {TimelineGrid, type TimelineGridHandle, type TimelineGridTimeline} from '
 import {QueryStateView} from './QueryStateView';
 import type {DayGroup} from '../domain/types';
 import css from './AssetGridView.module.less';
+import {t} from '../i18n/i18n';
 
 const Container = createSpotlightContainer({enterTo: 'last-focused'});
 const GridContainer = createSpotlightContainer({enterTo: 'last-focused'});
@@ -22,12 +23,15 @@ interface AssetGridViewProps {
 	error: unknown;
 	isEmpty: boolean;
 	emptyText?: string;
+	loadingText?: string;
 	spotlightId: string;
-	onBack: () => void;
+	// Detail views (album, place) go back to their list; a root view (Memories) has no back.
+	onBack?: () => void;
 	contentWidth: number;
+	formatHeader?: (timeBucket: string) => string;
 }
 
-/** Shared detail layout for asset collections (album, place): back header + day-grouped grid. */
+/** Shared layout for asset collections (album, place, memories): header + day-grouped grid. */
 export const AssetGridView: React.FC<AssetGridViewProps> = ({
 	title,
 	subtitle,
@@ -37,9 +41,11 @@ export const AssetGridView: React.FC<AssetGridViewProps> = ({
 	error,
 	isEmpty,
 	emptyText = '',
+	loadingText,
 	spotlightId,
 	onBack,
 	contentWidth,
+	formatHeader,
 }) => {
 	useWebOSKeys({onBack});
 	const gridRef = useRef<TimelineGridHandle>(null);
@@ -58,30 +64,32 @@ export const AssetGridView: React.FC<AssetGridViewProps> = ({
 	const backSpotlightId = `${spotlightId}-back`;
 	const hasNothingToShow = !isLoading && (!!error || isEmpty);
 	useEffect(() => {
-		if (!hasNothingToShow) return;
+		if (!hasNothingToShow || !onBack) return;
 		const raf = requestAnimationFrame(() => Spotlight.focus(backSpotlightId));
 		return () => cancelAnimationFrame(raf);
-	}, [hasNothingToShow, backSpotlightId]);
+	}, [hasNothingToShow, backSpotlightId, onBack]);
 
 	return (
 		<Container className={css.view}>
 			<div className={css.header} style={{paddingLeft: ri.scale(GRID_INSET_LEFT_PX)}}>
-				<div className={css.back}>
-					<Button icon="arrowlargeleft" size="small" backgroundOpacity="transparent" spotlightId={backSpotlightId} onClick={onBack} />
-				</div>
-				<div className={css.heading}>
+				{onBack && (
+					<div className={css.back}>
+						<Button icon="arrowlargeleft" size="small" backgroundOpacity="transparent" spotlightId={backSpotlightId} onClick={onBack} />
+					</div>
+				)}
+				<div className={onBack ? css.heading : `${css.heading} ${css.headingRoot}`}>
 					<span className={css.title}>{title}</span>
 					{subtitle && !isLoading && <span className={css.count}>{subtitle}</span>}
 				</div>
 				{hasContent && (
 					<Button icon="play" size="small" backgroundOpacity="transparent" onClick={startSlideshow}>
-						Slideshow
+						{t('slideshow.start')}
 					</Button>
 				)}
 			</div>
 			<GridContainer spotlightId={spotlightId} className={css.listContainer}>
-				<QueryStateView isLoading={isLoading} error={error} isEmpty={isEmpty} loadingText="Loading…" emptyText={emptyText}>
-					<TimelineGrid ref={gridRef} groups={groups} timeline={timeline} contentWidth={contentWidth} />
+				<QueryStateView isLoading={isLoading} error={error} isEmpty={isEmpty} loadingText={loadingText ?? t('state.loading')} emptyText={emptyText}>
+					<TimelineGrid ref={gridRef} groups={groups} timeline={timeline} contentWidth={contentWidth} formatHeader={formatHeader} />
 				</QueryStateView>
 			</GridContainer>
 		</Container>

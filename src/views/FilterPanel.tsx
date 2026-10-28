@@ -1,4 +1,6 @@
 import React, {useCallback, useMemo, useState} from 'react';
+import {flushSync} from 'react-dom';
+import Spotlight from '@enact/spotlight';
 import {FilterChips, type FilterChipOption} from '../components/FilterChips/FilterChips';
 import {DateRangePopup} from '../components/DateRangePopup/DateRangePopup';
 import {QueryStateView} from '../components/QueryStateView';
@@ -24,7 +26,8 @@ import {
 	type ModelChoice,
 } from '../domain/filterSelection';
 import {createSpotlightContainer} from '../utils/spotlight';
-import {formatCount} from '../utils/FormattingService';
+import {formatCount, formatCountAtLeast} from '../utils/FormattingService';
+import {t} from '../i18n/i18n';
 import type {AssetFilter, AssetType, CameraGroup} from '../domain/types';
 import type {RoutePanelProps} from '../types/navigation';
 import css from './FilterPanel.module.less';
@@ -42,12 +45,12 @@ const NO_CAMERAS: CameraGroup[] = [];
 // chosen) Clear, since the panel remembers its filter.
 type TypeChip = {kind: 'type'; type: AssetType | null} | {kind: 'favorites'} | {kind: 'clear'};
 const TYPE_OPTIONS: FilterChipOption<TypeChip>[] = [
-	{key: ALL, label: 'All', value: {kind: 'type', type: null}},
-	{key: 'IMAGE', label: 'Photos', value: {kind: 'type', type: 'IMAGE'}},
-	{key: 'VIDEO', label: 'Videos', value: {kind: 'type', type: 'VIDEO'}},
-	{key: FAVORITES, label: '★ Favorites', value: {kind: 'favorites'}},
+	{key: ALL, label: t('filter.all'), value: {kind: 'type', type: null}},
+	{key: 'IMAGE', label: t('filter.photos'), value: {kind: 'type', type: 'IMAGE'}},
+	{key: 'VIDEO', label: t('filter.videos'), value: {kind: 'type', type: 'VIDEO'}},
+	{key: FAVORITES, label: t('filter.favorites'), value: {kind: 'favorites'}},
 ];
-const TYPE_OPTIONS_WITH_CLEAR: FilterChipOption<TypeChip>[] = [...TYPE_OPTIONS, {key: CLEAR, label: '✕ Clear', value: {kind: 'clear'}}];
+const TYPE_OPTIONS_WITH_CLEAR: FilterChipOption<TypeChip>[] = [...TYPE_OPTIONS, {key: CLEAR, label: t('filter.clear'), value: {kind: 'clear'}}];
 
 type DateChip = {kind: 'all'} | {kind: 'year'; year: number} | {kind: 'custom'};
 type MakeChip = {kind: 'all'} | {kind: 'make'; label: string} | {kind: 'others'};
@@ -56,18 +59,28 @@ type IdChip = {kind: 'all'} | {kind: 'id'; id: string};
 
 const modelKey = (choice: ModelChoice) => `${choice.make}\u0000${choice.model ?? OTHERS}`;
 
+const TYPE_ROW_ID = 'filter-type-row';
+const DATE_ROW_ID = 'filter-date-row';
+
+// A row whose focused control went away (the popup it opened, the Clear chip itself) takes focus
+// back; it lands on its selected chip.
+const focusRow = (rowId: string) => {
+	Spotlight.setPointerMode(false);
+	Spotlight.focus(rowId);
+};
+
 interface ResultsProps {
 	filter: AssetFilter;
 	title: string;
 	contentWidth: number;
+	onScrolledChange: (scrolled: boolean) => void;
 }
 
-const FilterResults: React.FC<ResultsProps> = ({filter, title, contentWidth}) => {
+const FilterResults: React.FC<ResultsProps> = ({filter, title, contentWidth, onScrolledChange}) => {
 	const {groups, loadedCount, hasMore, isLoading, error, loadMore} = useFilteredAssets(filter);
 	const {data: total} = useFilteredCount(filter);
 	// Without the total, a partly loaded result reads "500+ items".
-	const count =
-		total !== undefined ? formatCount(total, 'item') : hasMore ? `${loadedCount.toLocaleString('en-US')}+ items` : formatCount(loadedCount, 'item');
+	const count = total !== undefined ? formatCount(total, 'item') : hasMore ? formatCountAtLeast(loadedCount) : formatCount(loadedCount, 'item');
 
 	return (
 		<>
@@ -76,8 +89,8 @@ const FilterResults: React.FC<ResultsProps> = ({filter, title, contentWidth}) =>
 				{!isLoading && !error && <span className={css.summaryCount}>{count}</span>}
 			</div>
 			<div className={css.results}>
-				<QueryStateView isLoading={isLoading} error={error} isEmpty={groups.length === 0} loadingText="Loading…" emptyText="Nothing matches this filter.">
-					<TimelineGrid groups={groups} contentWidth={contentWidth} onNearEnd={loadMore} totalCount={total} />
+				<QueryStateView isLoading={isLoading} error={error} isEmpty={groups.length === 0} loadingText={t('state.loading')} emptyText={t('filter.noMatch')}>
+					<TimelineGrid groups={groups} contentWidth={contentWidth} onNearEnd={loadMore} totalCount={total} onScrolledChange={onScrolledChange} />
 				</QueryStateView>
 			</div>
 		</>
@@ -87,6 +100,10 @@ const FilterResults: React.FC<ResultsProps> = ({filter, title, contentWidth}) =>
 const FilterPanel: React.FC<RoutePanelProps> = ({contentWidth}) => {
 	const [saved, update] = useFilterSelection();
 	const [customOpen, setCustomOpen] = useState(false);
+	// The chip rows fold away while the results are scrolled, giving the grid the screen; back at
+	// the top of the results they return, so Up from the first row still reaches them. Tied to the
+	// filter they were folded for: a new result set starts at the top, unfolded.
+	const [foldedFor, setFoldedFor] = useState<string | null>(null);
 
 	const {data: makes, isLoading: isMakesLoading} = useCameraMakes();
 	const {data: years} = useLibraryYears();
@@ -110,13 +127,22 @@ const FilterPanel: React.FC<RoutePanelProps> = ({contentWidth}) => {
 		[saved, makeList, modelsByMake, allPeople, people, albums]
 	);
 	const filter = useMemo(() => resolveFilter(selection, {makes: makeList, modelsByMake}), [selection, makeList, modelsByMake]);
+	const filterKey = JSON.stringify(filter);
+	const folded = foldedFor === filterKey;
+	const handleScrolledChange = useCallback((scrolled: boolean) => setFoldedFor(scrolled ? filterKey : null), [filterKey]);
 	// Results wait for every list a choice depends on, so a restored filter is fetched once, whole.
 	const ready =
 		!isMakesLoading && !(selection.models.length && isModelsLoading) && !(selection.people.length && isPeopleLoading) && !(selection.albums.length && isAlbumsLoading);
 
 	const handleType = useCallback(
-		(chip: TypeChip) =>
-			update((s) => (chip.kind === 'clear' ? EMPTY_SELECTION : chip.kind === 'favorites' ? {...s, favorites: !s.favorites} : {...s, type: chip.type})),
+		(chip: TypeChip) => {
+			if (chip.kind !== 'clear') {
+				update((s) => (chip.kind === 'favorites' ? {...s, favorites: !s.favorites} : {...s, type: chip.type}));
+				return;
+			}
+			flushSync(() => update(() => EMPTY_SELECTION));
+			focusRow(TYPE_ROW_ID);
+		},
 		[update]
 	);
 	const handleDate = useCallback(
@@ -140,11 +166,17 @@ const FilterPanel: React.FC<RoutePanelProps> = ({contentWidth}) => {
 	const handlePerson = useCallback((chip: IdChip) => update((s) => ({...s, people: chip.kind === 'all' ? [] : toggleItem(s.people, chip.id)})), [update]);
 	const handleAlbum = useCallback((chip: IdChip) => update((s) => ({...s, albums: chip.kind === 'all' ? [] : toggleItem(s.albums, chip.id)})), [update]);
 
-	const closeCustom = useCallback(() => setCustomOpen(false), []);
+	const closeCustom = useCallback(() => {
+		flushSync(() => setCustomOpen(false));
+		focusRow(DATE_ROW_ID);
+	}, []);
 	const applyCustom = useCallback(
 		(range: DateRange) => {
-			setCustomOpen(false);
-			update((s) => ({...s, date: range}));
+			flushSync(() => {
+				setCustomOpen(false);
+				update((s) => ({...s, date: range}));
+			});
+			focusRow(DATE_ROW_ID);
 		},
 		[update]
 	);
@@ -152,17 +184,17 @@ const FilterPanel: React.FC<RoutePanelProps> = ({contentWidth}) => {
 	const customRange = selection.date && rangeYear(selection.date) === null ? selection.date : null;
 	const dateOptions = useMemo<FilterChipOption<DateChip>[]>(
 		() => [
-			{key: ALL, label: 'All time', value: {kind: 'all'}},
+			{key: ALL, label: t('filter.allTime'), value: {kind: 'all'}},
 			...(years ?? []).map((year) => ({key: String(year), label: String(year), value: {kind: 'year', year} as DateChip})),
-			{key: CUSTOM, label: customRange ? describeDate(customRange) : 'Custom…', value: {kind: 'custom'}},
+			{key: CUSTOM, label: customRange ? describeDate(customRange) : t('filter.custom'), value: {kind: 'custom'}},
 		],
 		[years, customRange]
 	);
 	const makeOptions = useMemo<FilterChipOption<MakeChip>[]>(
 		() => [
-			{key: ALL, label: 'All', value: {kind: 'all'}},
+			{key: ALL, label: t('filter.all'), value: {kind: 'all'}},
 			...makeList.map((make) => ({key: make.label, label: make.label, value: {kind: 'make', label: make.label} as MakeChip})),
-			{key: OTHERS, label: 'Others', value: {kind: 'others'}},
+			{key: OTHERS, label: t('filter.others'), value: {kind: 'others'}},
 		],
 		[makeList]
 	);
@@ -180,18 +212,18 @@ const FilterPanel: React.FC<RoutePanelProps> = ({contentWidth}) => {
 				options.push({key: modelKey(choice), label: name(model.label), value: {kind: 'model', choice}});
 			}
 			const others = {make: make.label, model: null};
-			options.push({key: modelKey(others), label: name('Others'), value: {kind: 'model', choice: others}});
+			options.push({key: modelKey(others), label: name(t('filter.others')), value: {kind: 'model', choice: others}});
 		}
-		return options.length ? [{key: ALL, label: 'All', value: {kind: 'all'}}, ...options] : [];
+		return options.length ? [{key: ALL, label: t('filter.all'), value: {kind: 'all'}}, ...options] : [];
 	}, [chosenMakes, modelsByMake]);
 	const peopleOptions = useMemo<FilterChipOption<IdChip>[]>(
-		() => (people.length ? [{key: ALL, label: 'All', value: {kind: 'all'}}, ...people.map((p) => ({key: p.id, label: p.name, value: {kind: 'id', id: p.id} as IdChip}))] : []),
+		() => (people.length ? [{key: ALL, label: t('filter.all'), value: {kind: 'all'}}, ...people.map((p) => ({key: p.id, label: p.name, value: {kind: 'id', id: p.id} as IdChip}))] : []),
 		[people]
 	);
 	const albumOptions = useMemo<FilterChipOption<IdChip>[]>(
 		() =>
 			albums?.length
-				? [{key: ALL, label: 'All', value: {kind: 'all'}}, ...albums.map((a) => ({key: a.id, label: a.albumName, value: {kind: 'id', id: a.id} as IdChip}))]
+				? [{key: ALL, label: t('filter.all'), value: {kind: 'all'}}, ...albums.map((a) => ({key: a.id, label: a.albumName, value: {kind: 'id', id: a.id} as IdChip}))]
 				: [],
 		[albums]
 	);
@@ -212,29 +244,41 @@ const FilterPanel: React.FC<RoutePanelProps> = ({contentWidth}) => {
 
 	return (
 		<Container className={css.filterPanel}>
-			<div className={css.controls}>
-				<FilterChips label="Type" options={isEmptySelection(selection) ? TYPE_OPTIONS : TYPE_OPTIONS_WITH_CLEAR} selectedKeys={typeKeys} onSelect={handleType} />
-				<FilterChips label="Date" options={dateOptions} selectedKeys={dateKeys} onSelect={handleDate} />
-				{!isMakesLoading && <FilterChips label="Camera" options={makeOptions} selectedKeys={makeKeys.length ? makeKeys : [ALL]} onSelect={handleMake} />}
+			<div className={folded ? `${css.controls} ${css.folded}` : css.controls}>
+				<FilterChips
+					label={t('filter.type')}
+					options={isEmptySelection(selection) ? TYPE_OPTIONS : TYPE_OPTIONS_WITH_CLEAR}
+					selectedKeys={typeKeys}
+					onSelect={handleType}
+					spotlightId={TYPE_ROW_ID}
+				/>
+				<FilterChips label={t('filter.date')} options={dateOptions} selectedKeys={dateKeys} onSelect={handleDate} spotlightId={DATE_ROW_ID} />
+				{!isMakesLoading && <FilterChips label={t('filter.camera')} options={makeOptions} selectedKeys={makeKeys.length ? makeKeys : [ALL]} onSelect={handleMake} />}
 				{modelOptions.length > 0 && (
-					<FilterChips label="Model" options={modelOptions} selectedKeys={modelKeys.length ? modelKeys : [ALL]} onSelect={handleModel} />
+					<FilterChips label={t('filter.model')} options={modelOptions} selectedKeys={modelKeys.length ? modelKeys : [ALL]} onSelect={handleModel} />
 				)}
 				{peopleOptions.length > 0 && (
-					<FilterChips label="People" options={peopleOptions} selectedKeys={selection.people.length ? selection.people : [ALL]} onSelect={handlePerson} />
+					<FilterChips label={t('filter.people')} options={peopleOptions} selectedKeys={selection.people.length ? selection.people : [ALL]} onSelect={handlePerson} />
 				)}
 				{albumOptions.length > 0 && (
-					<FilterChips label="Albums" options={albumOptions} selectedKeys={selection.albums.length ? selection.albums : [ALL]} onSelect={handleAlbum} />
+					<FilterChips label={t('filter.albums')} options={albumOptions} selectedKeys={selection.albums.length ? selection.albums : [ALL]} onSelect={handleAlbum} />
 				)}
 			</div>
 			{!ready ? null : isEmptySelection(selection) ? (
 				<div className={css.results}>
-					<QueryStateView isLoading={false} error={null} isEmpty emptyText="Choose a type, date, camera, person or album">
+					<QueryStateView isLoading={false} error={null} isEmpty emptyText={t('filter.prompt')}>
 						{null}
 					</QueryStateView>
 				</div>
 			) : (
 				// Remounting the grid per filter starts each result set at the top.
-				<FilterResults key={JSON.stringify(filter)} filter={filter} title={describeSelection(selection, names)} contentWidth={contentWidth} />
+				<FilterResults
+					key={filterKey}
+					filter={filter}
+					title={describeSelection(selection, names)}
+					contentWidth={contentWidth}
+					onScrolledChange={handleScrolledChange}
+				/>
 			)}
 			{customOpen && <DateRangePopup initial={popupInitial} minYear={minYear} maxYear={maxYear} onApply={applyCustom} onCancel={closeCustom} />}
 		</Container>

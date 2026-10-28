@@ -6,6 +6,7 @@ import {usePhonePairing} from '../../hooks/usePhonePairing';
 import type {AuthSubmitResult} from '../../api/types';
 import type {PairingDriver, PairedAccountResult} from '../../pairing/types';
 import css from './PairingTab.module.less';
+import {t} from '../../i18n/i18n';
 
 interface PairingTabProps {
 	driver: PairingDriver;
@@ -40,10 +41,10 @@ export const PairingTab: React.FC<PairingTabProps> = ({driver, suggestedUrl, onP
 					</p>
 					<p className={css.step}>3. Sign in to your Immich server</p>
 					<div className={css.codeRow}>
-						<span className={css.codeLabel}>Code</span>
+						<span className={css.codeLabel}>{t('auth.code')}</span>
 						<span className={css.code}>{state.code}</span>
 					</div>
-					<p className={css.status}>Waiting for your phone…</p>
+					<p className={css.status}>{t('auth.waitingPhone')}</p>
 				</div>
 			</div>
 		);
@@ -64,7 +65,7 @@ export const PairingTab: React.FC<PairingTabProps> = ({driver, suggestedUrl, onP
 
 	return (
 		<div className={css.message}>
-			<p className={css.status}>{state.phase === 'finalizing' ? 'Signing in…' : 'Preparing phone sign-in…'}</p>
+			<p className={css.status}>{state.phase === 'finalizing' ? t('auth.signingIn') : t('auth.preparingPhone')}</p>
 		</div>
 	);
 };

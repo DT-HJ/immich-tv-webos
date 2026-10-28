@@ -9,7 +9,10 @@ export const MediaInfo: React.FC<{asset: TimelineAsset}> = React.memo(({asset}) 
 	const place = [asset.city, asset.country].filter(Boolean).join(', ');
 	return (
 		<div className={css.info}>
-			<div className={css.date}>{date}</div>
+			<div className={css.date}>
+				{date}
+				{asset.isFavorite && <span className={css.favorite}>♥</span>}
+			</div>
 			<div className={css.meta}>
 				{time}
 				{place && (

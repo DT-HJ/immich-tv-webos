@@ -6,14 +6,15 @@
 // (position:fixed z-index:1000 inside ViewContainer) free to overlay it.
 // Width is fixed (no focus-driven expand): animating `width` reflows the whole grid on
 // every frame, which stutters on TV hardware. Authored px are 4K-space (postcss-ri),
-// so 360px renders 180 CSS px at FHD — keep in sync with SIDEBAR_WIDTH (constants.ts).
+// so 392px renders 196 CSS px at FHD — keep in sync with SIDEBAR_WIDTH (constants.ts). Wide enough
+// for the longest label ("Memories") beside its icon.
 .rail {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   flex-shrink: 0;
-  width: 360px;
-  min-width: 360px;
+  width: 392px;
+  min-width: 392px;
   height: 100%;
   // Transparent so the rail shares the layout backdrop; the hairline is the only separator.
   background: transparent;

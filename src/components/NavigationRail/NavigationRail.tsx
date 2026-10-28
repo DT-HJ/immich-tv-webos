@@ -2,6 +2,7 @@ import React, {useMemo} from 'react';
 import Icon from '@enact/sandstone/Icon';
 import {createSpotlightContainer, SpottableButton} from '../../utils/spotlight';
 import {NAVIGATION_RAIL_ID} from '../../utils/constants';
+import {t, type MessageKey} from '../../i18n/i18n';
 import type {View} from '../../types/navigation';
 import css from './NavigationRail.module.less';
 
@@ -13,12 +14,13 @@ interface NavigationRailProps {
 	accountGradient: string;
 }
 
-const NAV_ITEMS: {view: View; icon: string; label: string}[] = [
-	{view: 'photos', icon: 'picture', label: 'Photos'},
-	{view: 'albums', icon: 'folder', label: 'Albums'},
-	{view: 'places', icon: 'location', label: 'Places'},
-	{view: 'search', icon: 'search', label: 'Search'},
-	{view: 'filter', icon: 'camera', label: 'Filter'},
+const NAV_ITEMS: {view: View; icon: string; label: MessageKey}[] = [
+	{view: 'photos', icon: 'picture', label: 'nav.photos'},
+	{view: 'memories', icon: 'replay', label: 'nav.memories'},
+	{view: 'albums', icon: 'folder', label: 'nav.albums'},
+	{view: 'places', icon: 'location', label: 'nav.places'},
+	{view: 'search', icon: 'search', label: 'nav.search'},
+	{view: 'filter', icon: 'camera', label: 'nav.filter'},
 ];
 
 const RailContainer = createSpotlightContainer({enterTo: 'last-focused'});
@@ -38,12 +40,13 @@ export const NavigationRail: React.FC<NavigationRailProps> = React.memo(({active
 				<SpottableButton
 					key={view}
 					className={[css.navItem, activeView === view ? css.active : ''].filter(Boolean).join(' ')}
+					data-nav-view={view}
 					onClick={navHandlers[view]}
 				>
 					<div className={css.iconContainer}>
 						<Icon size="tiny">{icon}</Icon>
 					</div>
-					<span className={css.label}>{label}</span>
+					<span className={css.label}>{t(label)}</span>
 				</SpottableButton>
 			))}
 			<div className={css.spacer} />
@@ -54,7 +57,7 @@ export const NavigationRail: React.FC<NavigationRailProps> = React.memo(({active
 						{accountLetter}
 					</span>
 				</div>
-				<span className={css.label}>Account</span>
+				<span className={css.label}>{t('nav.account')}</span>
 			</SpottableButton>
 		</RailContainer>
 	);

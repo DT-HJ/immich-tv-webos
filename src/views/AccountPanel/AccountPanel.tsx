@@ -9,6 +9,7 @@ import type {Account} from '../../utils/accountsStore';
 import type {PairingDriver, PairedAccountResult} from '../../pairing/types';
 import bannerImage from '../../assets/immich-banner.webp';
 import css from './AccountPanel.module.less';
+import {t} from '../../i18n/i18n';
 
 export type AccountPanelMode = 'first-launch' | 'overlay';
 
@@ -145,8 +146,8 @@ export const AccountPanel: React.FC<AccountPanelProps> = ({
 		return (
 			<div className={css.firstLaunch}>
 				<img src={bannerImage} alt="Immich" className={css.banner} />
-				<h2 className={css.welcomeTitle}>Welcome to Immich for TV</h2>
-				<p className={css.welcomeSub}>Add your Immich account to start browsing.</p>
+				<h2 className={css.welcomeTitle}>{t('account.welcome')}</h2>
+				<p className={css.welcomeSub}>{t('account.welcomeSub')}</p>
 				<Button autoFocus size="large" icon="plus" onClick={goForm} backgroundOpacity="opaque">
 					Add account
 				</Button>

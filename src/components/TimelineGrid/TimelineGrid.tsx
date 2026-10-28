@@ -45,6 +45,10 @@ interface TimelineGridProps {
 	onNearEnd?: () => void;
 	// Size of the whole paged collection, when known, for the viewer's "rank / total".
 	totalCount?: number;
+	// Day header text in place of the date (stable identity: the day blocks are memoized).
+	formatHeader?: (timeBucket: string) => string;
+	// The grid left its top, or came back to it (a panel can then fold what sits above it).
+	onScrolledChange?: (scrolled: boolean) => void;
 }
 
 export interface TimelineGridHandle {
@@ -66,6 +70,8 @@ const EMPTY_MONTHS: ReadonlyMap<string, DayGroup[]> = new Map();
 const ACTIVE_MONTH_PROBE_PX = 8;
 // The viewer asks for the next page this many assets before the last loaded one.
 const VIEWER_NEAR_END_ASSETS = 20;
+// Scrolled further than this from the top counts as having left it.
+const SCROLLED_PX = 4;
 
 // Spotlight treats the scroller as an overflow container: it focuses cards without native
 // scroll-into-view (useTimelineViewportFocus owns scrolling) and only enters on visible cards.
@@ -79,10 +85,11 @@ interface DayGroupContentProps {
 	firstCard: number;
 	endCard: number;
 	onSelect: (asset: TimelineAsset) => void;
+	formatHeader?: (timeBucket: string) => string;
 }
 
 // Positioned by its parent: a month loading above moves the block without re-rendering its cards.
-const DayGroupContent: React.FC<DayGroupContentProps> = React.memo(({group, layout, firstCard, endCard, onSelect}) => {
+const DayGroupContent: React.FC<DayGroupContentProps> = React.memo(({group, layout, firstCard, endCard, onSelect, formatHeader}) => {
 	// One style object per card for the block's lifetime, so rows scrolling in and out of the
 	// mounted range don't re-render the cards that stay.
 	const cardStyles = useMemo(
@@ -91,7 +98,7 @@ const DayGroupContent: React.FC<DayGroupContentProps> = React.memo(({group, layo
 	);
 	return (
 		<>
-			<DateHeader timeBucket={group.timeBucket} />
+			<DateHeader timeBucket={group.timeBucket} format={formatHeader} />
 			<div className={css.assetsGrid} style={layout ? {height: layout.totalHeight} : undefined}>
 				{group.assets.slice(firstCard, endCard).map((asset, offset) => (
 					<AssetCard key={asset.id} asset={asset} onSelect={onSelect} style={cardStyles?.[firstCard + offset]} />
@@ -109,7 +116,7 @@ function cardRange(layout: JustifiedLayoutResult | undefined, gridTop: number, w
 	return {firstCard, endCard};
 }
 
-export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({groups, contentWidth, timeline, onNearEnd, totalCount: knownTotal}, ref) => {
+export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({groups, contentWidth, timeline, onNearEnd, totalCount: knownTotal, formatHeader, onScrolledChange}, ref) => {
 	const dayGroups = useMemo(
 		() => (timeline ? timeline.allBuckets.flatMap((bucket) => timeline.loadedMonths.get(bucket.timeBucket) ?? []) : groups ?? EMPTY_GROUPS),
 		[groups, timeline]
@@ -221,10 +228,25 @@ export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({
 		if (windowBottom >= geometry.totalHeight) onNearEnd();
 	}, [timeline, onNearEnd, geometry.totalHeight, windowBottom]);
 
+	// Read through a ref: handleScroll stays stable for the scroller's lifetime.
+	const onScrolledChangeRef = useRef(onScrolledChange);
+	useEffect(() => {
+		onScrolledChangeRef.current = onScrolledChange;
+	}, [onScrolledChange]);
+	const scrolledRef = useRef(false);
+
 	const handleScroll = useCallback(() => {
 		const node = scrollRef.current;
 		if (!node) return;
 		const top = node.scrollTop;
+		// Leaving the top only counts with at least a screen more to scroll: folding what is above
+		// the grid grows it, and a short list would clamp back to the top and unfold again. Coming
+		// back counts only at the top itself.
+		const scrolled = scrolledRef.current ? top > SCROLLED_PX : top > SCROLLED_PX && node.scrollHeight - node.clientHeight > node.clientHeight;
+		if (scrolled !== scrolledRef.current) {
+			scrolledRef.current = scrolled;
+			onScrolledChangeRef.current?.(scrolled);
+		}
 		const measuredIn = committedGeometryRef.current;
 		// Scroll is a continuous event: React may defer its update by hundreds of milliseconds
 		// on a TV, leaving the D-pad facing rows that aren't mounted yet. Rendering in the event
@@ -290,7 +312,7 @@ export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({
 			? nextVideoInTimeline(timeline.allBuckets, timeline.loadedMonths, timeline.failedMonths, current)
 			: nextVideoInList(flatAssets, viewedIndex, canLoadMore);
 		if (!next) return;
-		if ('video' in next) openViewer(next.video.id);
+		if ('video' in next) openViewer(next.video.id, {autoplayed: true});
 		else if ('loadMonth' in next) timeline?.requestMonths([next.loadMonth]);
 		else onNearEnd?.();
 	}, [endedVideoId, viewedIndex, flatAssets, timeline, onNearEnd, knownTotal, totalCount, openViewer]);
@@ -373,6 +395,7 @@ export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({
 												firstCard={firstCard}
 												endCard={endCard}
 												onSelect={handleSelectAsset}
+												formatHeader={formatHeader}
 											/>
 										</div>
 									);
@@ -404,6 +427,7 @@ export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({
 						onNavigate={viewer.navigate}
 						onStartSlideshow={handleStartSlideshow}
 						onVideoEnded={handleVideoEnded}
+						autoplayed={!!viewer.state.autoplayed}
 					/>
 				</ErrorBoundary>
 			)}

@@ -1,5 +1,5 @@
 import {useState, useEffect, useCallback, useMemo} from 'react';
-import {APIClient} from '../api/client';
+import {APIClient, APIError} from '../api/client';
 import {ImmichRepository, validateAuth} from '../api/ImmichRepository';
 import {AuthMethod, type ApiKeyConfig, type UserCredentialsConfig, type AuthSubmitResult, type AuthFormPayload} from '../api/types';
 import type {PhotoRepository} from '../domain/PhotoRepository';
@@ -16,6 +16,7 @@ import {
 import {randomId} from '../utils/uuid';
 import {makeAuthErrorMessage} from './_authHelpers';
 import type {PairedAccountResult} from '../pairing/types';
+import {t} from '../i18n/i18n';
 
 const accountToConfig = (acc: Account): UserCredentialsConfig | ApiKeyConfig => {
 	if (acc.method === AuthMethod.API_KEY) {
@@ -34,6 +35,10 @@ const accountToConfig = (acc: Account): UserCredentialsConfig | ApiKeyConfig => 
 const resolveActiveId = (store: AccountsStore): string | null =>
 	store.defaultAccountId ?? store.lastActiveAccountId ?? store.accounts[0]?.id ?? null;
 
+// No answer, or the proxy answering for a server that is down: worth retrying as is, unlike a
+// rejected key or password.
+const isUnreachable = (error: unknown): boolean => !(error instanceof APIError) || !error.status || error.status >= 500;
+
 export const useAccounts = () => {
 	let _initial: AccountsStore | undefined;
 	const getInitial = () => (_initial ??= readAccountsStore());
@@ -43,6 +48,8 @@ export const useAccounts = () => {
 	const [repository, setRepository] = useState<PhotoRepository | null>(null);
 	const [isValidating, setIsValidating] = useState<boolean>(() => resolveActiveId(getInitial()) !== null);
 	const [validationError, setValidationError] = useState('');
+	// The active account's server didn't answer at sign-in (switched off, restarting).
+	const [serverUnreachable, setServerUnreachable] = useState(false);
 
 	const persist = useCallback((next: AccountsStore) => {
 		writeAccountsStore(next);
@@ -68,6 +75,7 @@ export const useAccounts = () => {
 		try {
 			const client = new APIClient(accountToConfig(account));
 			const ok = await validateAuth(client);
+			setServerUnreachable(false);
 			if (!ok) {
 				setRepository(null);
 				setActiveAccountId(id);
@@ -78,6 +86,7 @@ export const useAccounts = () => {
 		} catch (error) {
 			console.error('[useAccounts] validation failed', error);
 			setValidationError(makeAuthErrorMessage(error, account.method));
+			setServerUnreachable(isUnreachable(error));
 			setRepository(null);
 			setActiveAccountId(id);
 		} finally {
@@ -162,7 +171,7 @@ export const useAccounts = () => {
 				});
 				const ok = await validateAuth(client);
 				if (!ok) {
-					return {success: false, errorMessage: 'The server rejected the phone sign-in session. Try again.'};
+					return {success: false, errorMessage: t('auth.phoneRejected')};
 				}
 				const account: Account = {
 					id: randomId(),
@@ -207,6 +216,11 @@ export const useAccounts = () => {
 		[activate, persist, store],
 	);
 
+	// Signs in again to the active account, e.g. once its server is back.
+	const retry = useCallback(() => {
+		void activate(activeAccountId);
+	}, [activate, activeAccountId]);
+
 	const setAsDefault = useCallback(
 		(id: string | null) => {
 			persist(setDefaultInStore(store, id));
@@ -222,10 +236,12 @@ export const useAccounts = () => {
 			repository,
 			isValidating,
 			validationError,
+			serverUnreachable,
 			addAccount,
 			addPairedAccount,
 			removeAccount,
 			switchTo,
+			retry,
 			setAsDefault,
 		}),
 		[
@@ -234,10 +250,12 @@ export const useAccounts = () => {
 			repository,
 			isValidating,
 			validationError,
+			serverUnreachable,
 			addAccount,
 			addPairedAccount,
 			removeAccount,
 			switchTo,
+			retry,
 			setAsDefault,
 		],
 	);

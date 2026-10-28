@@ -1,0 +1,72 @@
+@import '../../styles/_theme.less';
+
+// Must match INFO_PANEL_WIDTH_PX (MediaViewer): the photo area shrinks by this much.
+@panel-width: 1120px;
+
+.panel {
+	flex: 0 0 @panel-width;
+	width: @panel-width;
+	height: 100%;
+	box-sizing: border-box;
+	padding: 120px 96px 96px;
+	overflow: hidden;
+	background: @bg-top;
+	border-left: 1px solid @hairline;
+	color: @text;
+	position: relative;
+}
+
+.heading {
+	display: flex;
+	align-items: center;
+	margin-bottom: 64px;
+	font-size: var(--font-heading);
+	font-weight: 600;
+}
+
+.favorite {
+	margin-left: 24px;
+	color: #f28b82;
+}
+
+.row {
+	display: flex;
+	flex-direction: row;
+	align-items: baseline;
+	margin-bottom: 44px;
+}
+
+.label {
+	flex: 0 0 200px;
+	font-size: var(--font-caption);
+	color: @text-subtle;
+	letter-spacing: 0.04em;
+}
+
+.value {
+	flex: 1;
+	min-width: 0;
+	font-size: var(--font-body);
+	line-height: 1.35;
+	color: @text;
+	word-break: break-word;
+}
+
+.secondary {
+	margin-top: 4px;
+	font-size: var(--font-caption);
+	color: @text-muted;
+}
+
+.loading {
+	font-size: var(--font-caption);
+	color: @text-subtle;
+}
+
+.hint {
+	position: absolute;
+	left: 96px;
+	bottom: 72px;
+	font-size: var(--font-caption);
+	color: @text-subtle;
+}

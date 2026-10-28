@@ -5,6 +5,7 @@ import {SpottableDiv} from '../utils/spotlight';
 import {useRepository} from '../domain/RepositoryContext';
 import type {TimelineAsset} from '../domain/types';
 import css from './AssetCard.module.less';
+import {t} from '../i18n/i18n';
 
 interface AssetCardProps {
 	asset: TimelineAsset;
@@ -31,9 +32,9 @@ const AssetThumbnail: React.FC<{thumbnailUrl: string; assetId: string}> = ({thum
 	}, [attempt]);
 	if (attempt === 'unavailable') {
 		return (
-			<div className={css.unavailable} role="img" aria-label="Preview unavailable">
+			<div className={css.unavailable} role="img" aria-label={t('state.previewUnavailable')}>
 				<Icon>picture</Icon>
-				<span>Preview unavailable</span>
+				<span>{t('state.previewUnavailable')}</span>
 			</div>
 		);
 	}

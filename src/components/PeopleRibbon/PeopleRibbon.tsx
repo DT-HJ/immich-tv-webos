@@ -28,12 +28,9 @@ const PersonItem: React.FC<PersonItemProps> = ({person, repository, isSelected, 
 			className={`${css.personItem}${isSelected ? ` ${css.selected}` : ''}`}
 			onClick={handleClick}
 		>
-			<img
-				src={repository.faceUrl(person.id)}
-				className={css.face}
-				alt={person.name || 'Unknown person'}
-			/>
-			<span className={css.name}>{person.name || 'Unknown'}</span>
+			<img src={repository.faceUrl(person.id)} className={css.face} alt={person.name} />
+			{/* Unnamed faces go without a caption: a row of "Unknown" says nothing. */}
+			<span className={css.name}>{person.name || '\u00a0'}</span>
 		</SpottableDiv>
 	);
 };

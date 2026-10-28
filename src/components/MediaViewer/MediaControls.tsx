@@ -2,6 +2,7 @@ import React, {useCallback} from 'react';
 import Button from '@enact/sandstone/Button';
 import {MediaInfo} from '../MediaInfo/MediaInfo';
 import {RoundButton} from '../RoundButton';
+import {t} from '../../i18n/i18n';
 import {createSpotlightContainer} from '../../utils/spotlight';
 import type {TimelineAsset} from '../../domain/types';
 import chrome from '../MediaChrome.module.less';
@@ -18,6 +19,8 @@ interface MediaControlsProps {
 	position: string;
 	isVideo: boolean;
 	controlsVisible: boolean;
+	infoOpen: boolean;
+	autoplayed: boolean;
 	canGoPrev: boolean;
 	canGoNext: boolean;
 	onPrev: () => void;
@@ -25,11 +28,12 @@ interface MediaControlsProps {
 	onClose: () => void;
 	onRotate: () => void;
 	onStartSlideshow: () => void;
+	onToggleInfo: () => void;
 	onActionBarFocusChange: (focused: boolean) => void;
 }
 
 export const MediaControls: React.FC<MediaControlsProps> = React.memo(
-	({rootRef, asset, position, isVideo, controlsVisible, canGoPrev, canGoNext, onPrev, onNext, onClose, onRotate, onStartSlideshow, onActionBarFocusChange}) => {
+	({rootRef, asset, position, isVideo, controlsVisible, infoOpen, autoplayed, canGoPrev, canGoNext, onPrev, onNext, onClose, onRotate, onStartSlideshow, onToggleInfo, onActionBarFocusChange}) => {
 		const handleBarFocus = useCallback(() => onActionBarFocusChange(true), [onActionBarFocusChange]);
 		const handleBarBlur = useCallback(
 			(event: React.FocusEvent<HTMLDivElement>) => {
@@ -46,7 +50,14 @@ export const MediaControls: React.FC<MediaControlsProps> = React.memo(
 						<Button icon="closex" size="small" backgroundOpacity="transparent" onClick={onClose} spotlightId={CLOSE_BUTTON_SPOTLIGHT_ID} />
 					)}
 					<MediaInfo asset={asset} />
-					<span className={chrome.pill}>{position}</span>
+					<div className={chrome.topEnd}>
+						<span className={chrome.pill}>
+							{autoplayed && <span className={chrome.pillLead}>{`${t('viewer.nextVideo')} · `}</span>}
+							{position}
+						</span>
+						{/* Up toggles the details panel; the hint names it while it is closed. */}
+						{!infoOpen && <span className={chrome.keyHint}>{`▲ ${t('viewer.info')}`}</span>}
+					</div>
 				</div>
 
 				{/* Pointer-only: the D-pad pages with left/right directly. */}
@@ -60,9 +71,10 @@ export const MediaControls: React.FC<MediaControlsProps> = React.memo(
 				{!isVideo && (
 					<div className={chrome.bottomBar}>
 						<ActionBar spotlightId={ACTION_BAR_SPOTLIGHT_ID} className={chrome.actionBar} onFocus={handleBarFocus} onBlur={handleBarBlur}>
-							<RoundButton icon="rotate" tooltipText="Rotate" onClick={onRotate} />
-							<RoundButton icon="play" tooltipText="Slideshow" onClick={onStartSlideshow} />
-							<RoundButton icon="closex" tooltipText="Close" onClick={onClose} />
+							<RoundButton icon="info" tooltipText={t('viewer.info')} onClick={onToggleInfo} />
+							<RoundButton icon="play" tooltipText={t('viewer.slideshow')} onClick={onStartSlideshow} />
+							<RoundButton icon="rotate" tooltipText={t('viewer.rotate')} onClick={onRotate} />
+							<RoundButton icon="closex" tooltipText={t('viewer.close')} onClick={onClose} />
 						</ActionBar>
 					</div>
 				)}

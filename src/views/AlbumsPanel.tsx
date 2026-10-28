@@ -7,6 +7,7 @@ import {useAlbums} from '../hooks/useAlbums';
 import {useFocusOnReturn} from '../hooks/useFocusOnReturn';
 import type {RoutePanelProps} from '../types/navigation';
 import {formatCount} from '../utils/FormattingService';
+import {t} from '../i18n/i18n';
 
 const AlbumsPanel: React.FC<RoutePanelProps> = ({contentWidth}) => {
 	const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
@@ -28,10 +29,10 @@ const AlbumsPanel: React.FC<RoutePanelProps> = ({contentWidth}) => {
 			isLoading={isLoading}
 			error={error}
 			isEmpty={!albums?.length}
-			loadingText="Loading albums…"
-			emptyText="No albums found."
+			loadingText={t('albums.loading')}
+			emptyText={t('albums.empty')}
 		>
-			<CollectionGrid title="Albums" subtitle={albums ? formatCount(albums.length, 'album') : undefined}>
+			<CollectionGrid title={t('albums.title')} subtitle={albums ? formatCount(albums.length, 'album') : undefined}>
 				{albums?.map((album) => (
 					<AlbumCard key={album.id} album={album} onSelect={handleSelectAlbum} />
 				))}

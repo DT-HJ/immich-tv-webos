@@ -12,6 +12,11 @@
 	padding: 32px 0 0 @page-inset-x;
 }
 
+// Out of layout (not just out of sight): the grid takes the room, and hidden chips can't take focus.
+.folded {
+	display: none;
+}
+
 .summary {
 	flex-shrink: 0;
 	display: flex;

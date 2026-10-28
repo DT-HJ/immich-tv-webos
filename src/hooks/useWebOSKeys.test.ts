@@ -1,5 +1,5 @@
 import {fireEvent, renderHook} from '@testing-library/react';
-import {useWebOSKeys} from './useWebOSKeys';
+import {useRootBack, useWebOSKeys} from './useWebOSKeys';
 
 // Fire a keydown while a single onBack is mounted, and report whether it was treated as Back.
 function firesBack(init: KeyboardEventInit & {keyCode?: number}): boolean {
@@ -32,5 +32,52 @@ describe('useWebOSKeys Back detection', () => {
 
 	test('the wheel filter is scoped to 1536 only — other Back codes still fire even if key is "Unidentified"', () => {
 		expect(firesBack({keyCode: 461, key: 'Unidentified'})).toBe(true);
+	});
+});
+
+describe('useRootBack', () => {
+	const pressBack = () => {
+		const event = new KeyboardEvent('keydown', {key: 'GoBack', keyCode: 461, cancelable: true} as KeyboardEventInit);
+		window.dispatchEvent(event);
+		return event.defaultPrevented;
+	};
+
+	test('is consulted only when no screen takes Back, and can leave the key to the system', () => {
+		let handles = true;
+		const root = jest.fn(() => handles);
+		const {unmount: unmountRoot} = renderHook(() => useRootBack(root));
+
+		const onBack = jest.fn();
+		const {unmount: unmountScreen} = renderHook(() => useWebOSKeys({onBack}));
+		expect(pressBack()).toBe(true);
+		expect(onBack).toHaveBeenCalledTimes(1);
+		expect(root).not.toHaveBeenCalled();
+
+		unmountScreen();
+		expect(pressBack()).toBe(true);
+		expect(root).toHaveBeenCalledTimes(1);
+
+		// Declined (focus already on the menu): WAM gets the key and shows its exit prompt.
+		handles = false;
+		expect(pressBack()).toBe(false);
+		unmountRoot();
+		expect(pressBack()).toBe(false);
+		expect(root).toHaveBeenCalledTimes(2);
+	});
+
+	test('a re-rendered root handler stays below screens mounted after it', () => {
+		const first = jest.fn(() => true);
+		const second = jest.fn(() => true);
+		const {rerender, unmount} = renderHook(({handler}) => useRootBack(handler), {initialProps: {handler: first}});
+		const onBack = jest.fn();
+		const view = renderHook(() => useWebOSKeys({onBack}));
+		rerender({handler: second});
+		pressBack();
+		expect(onBack).toHaveBeenCalledTimes(1);
+		view.unmount();
+		pressBack();
+		expect(second).toHaveBeenCalledTimes(1);
+		expect(first).not.toHaveBeenCalled();
+		unmount();
 	});
 });

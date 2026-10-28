@@ -13,6 +13,7 @@ import {createSlideshowPlaylist, type SlideshowOrder, type SlideshowSource} from
 import type {TimelineAsset} from '../../domain/types';
 import chrome from '../MediaChrome.module.less';
 import css from './Slideshow.module.less';
+import {t} from '../../i18n/i18n';
 
 interface SlideshowProps {
 	start: TimelineAsset | null;
@@ -69,7 +70,7 @@ const SlideLayer: React.FC<SlideLayerProps> = ({asset, slot, isFront, onLoad}) =
 	);
 };
 
-const formatInterval = (seconds: number) => (seconds < 60 ? `${seconds} s` : `${seconds / 60} min`);
+const formatInterval = (seconds: number) => (seconds < 60 ? t('slideshow.seconds', {n: seconds}) : t('slideshow.minutes', {n: seconds / 60}));
 
 export const Slideshow: React.FC<SlideshowProps> = ({start, source, onExit}) => {
 	const repository = useRepository();
@@ -204,27 +205,27 @@ export const Slideshow: React.FC<SlideshowProps> = ({start, source, onExit}) => 
 			{stage.slots.map((asset, slot) =>
 				asset ? <SlideLayer key={slot} asset={asset} slot={slot as 0 | 1} isFront={slot === stage.front} onLoad={handleLayerLoad} /> : null
 			)}
-			{isEmpty && <div className={css.message}>No photos to show.</div>}
+			{isEmpty && <div className={css.message}>{t('slideshow.empty')}</div>}
 			<div ref={osdRef} className={osdVisible ? chrome.chrome : `${chrome.chrome} ${chrome.hidden}`}>
 				<div className={chrome.topBar}>{current && <MediaInfo asset={current} />}</div>
 				<div className={chrome.bottomBar}>
 					<div className={chrome.actionBar}>
 						<RoundButton
 							icon={paused ? 'play' : 'pause'}
-							tooltipText={paused ? 'Play' : 'Pause'}
+							tooltipText={paused ? t('slideshow.play') : t('slideshow.pause')}
 							spotlightId={PLAY_BUTTON_SPOTLIGHT_ID}
 							data-spotlight-default-element
 							onClick={togglePaused}
 						/>
 						<RoundButton
 							icon={settings.order === 'shuffle' ? 'shuffleon' : 'shuffle'}
-							tooltipText={settings.order === 'shuffle' ? 'Shuffle on' : 'Shuffle off'}
+							tooltipText={settings.order === 'shuffle' ? t('slideshow.shuffleOn') : t('slideshow.shuffleOff')}
 							onClick={toggleOrder}
 						/>
-						<RoundButton tooltipText="Interval" onClick={cycleInterval}>
+						<RoundButton tooltipText={t('slideshow.interval')} onClick={cycleInterval}>
 							{formatInterval(settings.intervalSeconds)}
 						</RoundButton>
-						<RoundButton icon="closex" tooltipText="Exit" onClick={handleExit} />
+						<RoundButton icon="closex" tooltipText={t('slideshow.exit')} onClick={handleExit} />
 					</div>
 				</div>
 			</div>

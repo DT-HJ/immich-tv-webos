@@ -6,6 +6,8 @@ interface UseAutoHideControlsOptions {
 	// The controls' container: input aimed at it (focus inside, pointer over it) is activity.
 	controlsRef: RefObject<HTMLElement | null>;
 	hideDelayMs?: number;
+	// Keys that bring hidden controls back (default: OK, Up, Down).
+	revealKeys?: ReadonlySet<string>;
 }
 
 interface AutoHideControls {
@@ -26,7 +28,7 @@ const REVEAL_KEYS = new Set(['Enter', 'ArrowUp', 'ArrowDown']);
  * pressed on them (moving between buttons included) and any pointer movement over them
  * restarts the countdown, so they never vanish under a user who is still using them.
  */
-export const useAutoHideControls = ({enabled, controlsRef, hideDelayMs = DEFAULT_HIDE_DELAY_MS}: UseAutoHideControlsOptions): AutoHideControls => {
+export const useAutoHideControls = ({enabled, controlsRef, hideDelayMs = DEFAULT_HIDE_DELAY_MS, revealKeys = REVEAL_KEYS}: UseAutoHideControlsOptions): AutoHideControls => {
 	const [visible, setVisible] = useState(true);
 	const [wasEnabled, setWasEnabled] = useState(enabled);
 	const timerRef = useRef<number | null>(null);
@@ -76,10 +78,10 @@ export const useAutoHideControls = ({enabled, controlsRef, hideDelayMs = DEFAULT
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (visibleRef.current) {
 				// Shown: keep them alive and let Spotlight handle the key (move focus / activate).
-				if (REVEAL_KEYS.has(event.key) || isOnControls(event.target)) startTimer();
+				if (revealKeys.has(event.key) || isOnControls(event.target)) startTimer();
 				return;
 			}
-			if (!REVEAL_KEYS.has(event.key)) return;
+			if (!revealKeys.has(event.key)) return;
 			// Hidden: summon controls and swallow the press so Spotlight doesn't act on a
 			// control that is still visually hidden underneath.
 			setVisible(true);
@@ -103,7 +105,7 @@ export const useAutoHideControls = ({enabled, controlsRef, hideDelayMs = DEFAULT
 			window.removeEventListener('mousemove', handlePointerMove);
 			clearTimer();
 		};
-	}, [enabled, controlsRef, startTimer, clearTimer]);
+	}, [enabled, controlsRef, startTimer, clearTimer, revealKeys]);
 
 	const show = useCallback(() => {
 		setVisible(true);

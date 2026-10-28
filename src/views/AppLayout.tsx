@@ -1,8 +1,11 @@
-import React, {useEffect, useState} from 'react';
-import {SIDEBAR_WIDTH} from '../utils/constants';
+import React, {useCallback, useEffect, useState} from 'react';
+import Spotlight from '@enact/spotlight';
+import {NAVIGATION_RAIL_ID, SIDEBAR_WIDTH} from '../utils/constants';
 import {createSpotlightContainer} from '../utils/spotlight';
+import {useRootBack} from '../hooks/useWebOSKeys';
 import {NavigationRail} from '../components/NavigationRail/NavigationRail';
 import MainPanel from './MainPanel';
+import MemoriesPanel from './MemoriesPanel';
 import AlbumsPanel from './AlbumsPanel';
 import PlacesPanel from './PlacesPanel';
 import SearchPanel from './SearchPanel';
@@ -28,6 +31,18 @@ const AppLayout: React.FC<AppLayoutProps> = ({onOpenAccount, accountLetter, acco
 		return () => window.removeEventListener('resize', handleResize);
 	}, []);
 
+	// Back from a view's content returns to its menu entry; Back on the menu leaves the app
+	// (WAM's exit prompt), instead of a single press from anywhere offering to quit.
+	const handleRootBack = useCallback(() => {
+		const rail = document.getElementById(NAVIGATION_RAIL_ID);
+		if (!rail || rail.contains(document.activeElement)) return false;
+		const entry = rail.querySelector<HTMLElement>(`[data-nav-view="${activeView}"]`);
+		if (!entry) return false;
+		Spotlight.setPointerMode(false);
+		return (Spotlight as unknown as {focus: (node: HTMLElement) => boolean}).focus(entry);
+	}, [activeView]);
+	useRootBack(handleRootBack);
+
 	return (
 		<div className={css.layout}>
 			<NavigationRail
@@ -47,6 +62,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({onOpenAccount, accountLetter, acco
 				<div className={activeView === 'photos' ? css.panelActive : css.panelHidden}>
 					<MainPanel contentWidth={contentWidth} />
 				</div>
+				{activeView === 'memories' && (
+					<div className={css.panelActive}>
+						<MemoriesPanel contentWidth={contentWidth} />
+					</div>
+				)}
 				{activeView === 'albums' && (
 					<div className={css.panelActive}>
 						<AlbumsPanel contentWidth={contentWidth} />

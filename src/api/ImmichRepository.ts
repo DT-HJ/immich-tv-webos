@@ -6,6 +6,7 @@ import {
 	MAIN_TIMELINE,
 	type Album,
 	type AlbumDetails,
+	type AssetDetails,
 	type AssetFilter,
 	type AssetPage,
 	type CameraGroup,
@@ -130,6 +131,8 @@ function transformColumnarResponse(columnar: ColumnarAssetResponse): TimelineAss
 		durationSeconds: toDurationSeconds(columnar.duration[i]),
 		city: columnar.city?.[i],
 		country: columnar.country?.[i],
+		// Only set when true: most assets aren't favorites, and every month's assets stay in memory.
+		isFavorite: columnar.isFavorite?.[i] ? true : undefined,
 	}));
 }
 
@@ -147,6 +150,7 @@ export class ImmichRepository implements PhotoRepository {
 			description: a.description,
 			albumThumbnailAssetId: a.albumThumbnailAssetId,
 			assetCount: a.assetCount,
+			endDate: a.endDate ?? null,
 		};
 	}
 
@@ -191,6 +195,39 @@ export class ImmichRepository implements PhotoRepository {
 			durationSeconds: toDurationSeconds(a.duration),
 			city: a.exifInfo?.city,
 			country: a.exifInfo?.country,
+			isFavorite: a.isFavorite ? true : undefined,
+		};
+	}
+
+	public async getAssetDetails(assetId: string): Promise<AssetDetails> {
+		const a = await this.client.fetch<ImmichAsset>(`/assets/${assetId}`);
+		const exif = a.exifInfo ?? {};
+		// EXIF placeholders ('', 'none', 'unknown') read as missing, like the camera filter.
+		const text = (value: string | null | undefined) => {
+			const trimmed = value?.trim();
+			return trimmed && EXIF_PLACEHOLDERS.indexOf(trimmed) < 0 ? trimmed : null;
+		};
+		const number = (value: number | null | undefined) => (typeof value === 'number' && value > 0 ? value : null);
+		return {
+			id: a.id,
+			fileName: a.originalFileName ?? null,
+			make: text(exif.make),
+			model: text(exif.model),
+			lens: text(exif.lensModel),
+			fNumber: number(exif.fNumber),
+			exposureTime: text(exif.exposureTime),
+			iso: number(exif.iso),
+			focalLength: number(exif.focalLength),
+			// v3's top-level size is upright; EXIF's is as stored (before the orientation tag).
+			width: number(a.width ?? exif.exifImageWidth),
+			height: number(a.height ?? exif.exifImageHeight),
+			fileSize: number(exif.fileSizeInByte),
+			city: text(exif.city),
+			state: text(exif.state),
+			country: text(exif.country),
+			description: text(exif.description),
+			people: (a.people ?? []).map((person) => person.name?.trim() ?? '').filter(Boolean),
+			isFavorite: !!a.isFavorite,
 		};
 	}
 

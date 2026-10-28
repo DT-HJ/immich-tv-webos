@@ -5,8 +5,9 @@
 // (~6500 files / ~74MB) into dist/node_modules/ilib/locale on every `enact pack`.
 // Two rules decide what ships:
 //
-// 1. Locales. The app UI is English-only, so only the root fallback data + `en/` + `und/`
-//    (region data, for any country) are kept. Every other language goes, along with the
+// 1. Locales. The app UI is English or Korean (src/i18n), so only the root fallback data +
+//    `en/` + `ko/` + `und/` (region data, for any country) are kept: with `ko/`, Sandstone's own
+//    widgets (the date picker) follow a Korean TV too. Every other language goes, along with the
 //    charmaps/, charset/, nf*/ and zoneinfo/ dirs (webOS reads time zones from the system).
 // 2. Data kinds. ilib reads locale data only through Utils.loadData({name}), called by the
 //    ilib classes bundled into the app. A file ships only if a call site in the bundle can
@@ -33,7 +34,7 @@ const DIST = 'dist';
 const LOCALE_DIR = join(DIST, 'node_modules/ilib/locale');
 const MANIFEST_NAME = 'ilibmanifest.json';
 const MANIFEST = join(LOCALE_DIR, MANIFEST_NAME);
-const KEEP_DIRS = new Set(['en', 'und']);
+const KEEP_DIRS = new Set(['en', 'ko', 'und']);
 
 // The two loadData names that are not a plain "<file>.json" literal in ilib-webos.
 const RESBUNDLE_NAME = 'this.baseName+".json"';

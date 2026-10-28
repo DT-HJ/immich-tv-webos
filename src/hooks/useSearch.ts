@@ -5,6 +5,9 @@ import {useRepository} from '../domain/RepositoryContext';
 import {groupAssetsByDay} from '../domain/transforms';
 import type {DayGroup} from '../domain/types';
 
+/** The `timeBucket` of the single best-match-first block of smart search results. */
+export const RELEVANCE_GROUP = 'relevance';
+
 export interface SearchQuery {
 	type: 'smart' | 'city';
 	value: string;
@@ -26,7 +29,13 @@ export const useSearch = (query: SearchQuery | null): {
 		...ASSETS_QUERY_CONFIG,
 	});
 
-	const groups = useMemo(() => (result.data ? groupAssetsByDay(result.data) : []), [result.data]);
+	// Smart search answers best match first: it stays in that order as one block (the viewer pages
+	// through it in the same order). Places read better by day.
+	const groups = useMemo(() => {
+		if (!result.data) return [];
+		if (query?.type !== 'smart') return groupAssetsByDay(result.data);
+		return result.data.length ? [{timeBucket: RELEVANCE_GROUP, assets: result.data, count: result.data.length}] : [];
+	}, [result.data, query?.type]);
 
 	return {groups, isLoading: result.isLoading, error: result.error};
 };

@@ -1,4 +1,5 @@
 import {act, renderHook, waitFor} from '@testing-library/react';
+import {APIError} from '../api/client';
 import {AuthMethod} from '../api/types';
 import type {Account} from '../utils/accountsStore';
 import {useAccounts} from './useAccounts';
@@ -59,6 +60,36 @@ describe('useAccounts initial state', () => {
 		await waitFor(() => expect(result.current.isValidating).toBe(false));
 		expect(result.current.repository).toBeNull();
 		expect(result.current.activeAccountId).toBe('a');
+	});
+});
+
+describe('unreachable server', () => {
+	const acc: Account = {id: 'a', baseUrl: 'http://a', method: AuthMethod.API_KEY, apiKey: 'k', addedAt: 1};
+
+	test('a network error or a 5xx flags the server as unreachable, and retry signs in once it is back', async () => {
+		mockValidate.mockRejectedValueOnce(new APIError('Network error'));
+		seed([acc]);
+		const {result} = renderHook(() => useAccounts());
+		await waitFor(() => expect(result.current.isValidating).toBe(false));
+		expect(result.current.serverUnreachable).toBe(true);
+		expect(result.current.repository).toBeNull();
+
+		mockValidate.mockRejectedValueOnce(new APIError('Bad Gateway', 502));
+		act(() => result.current.retry());
+		await waitFor(() => expect(result.current.isValidating).toBe(false));
+		expect(result.current.serverUnreachable).toBe(true);
+
+		act(() => result.current.retry());
+		await waitFor(() => expect(result.current.repository).not.toBeNull());
+		expect(result.current.serverUnreachable).toBe(false);
+	});
+
+	test('a rejected key is not an unreachable server', async () => {
+		mockValidate.mockRejectedValueOnce(new APIError('Forbidden', 403));
+		seed([acc]);
+		const {result} = renderHook(() => useAccounts());
+		await waitFor(() => expect(result.current.isValidating).toBe(false));
+		expect(result.current.serverUnreachable).toBe(false);
 	});
 });
 

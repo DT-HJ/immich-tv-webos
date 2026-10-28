@@ -1,10 +1,11 @@
-import type {Album, AlbumDetails, AssetFilter, AssetPage, CameraGroup, Person, Place, TimelineAsset, TimelineBucket, TimelineScope} from './types';
+import type {Album, AlbumDetails, AssetDetails, AssetFilter, AssetPage, CameraGroup, Person, Place, TimelineAsset, TimelineBucket, TimelineScope} from './types';
 
 export interface PhotoRepository {
 	getBuckets(scope?: TimelineScope): Promise<TimelineBucket[]>;
 	getBucketAssets(timeBucket: string, scope?: TimelineScope, signal?: AbortSignal): Promise<TimelineAsset[]>;
 
 	getAlbums(): Promise<Album[]>;
+	getAssetDetails(assetId: string): Promise<AssetDetails>;
 	getAlbum(albumId: string): Promise<AlbumDetails>;
 
 	getPeople(): Promise<Person[]>;

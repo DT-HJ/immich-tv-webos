@@ -8,6 +8,18 @@
 	z-index: 1000;
 	overflow: hidden;
 	display: flex;
+	flex-direction: row;
+}
+
+// Everything but the details panel: the media, the focus stage and the chrome (positioned
+// against this box, so they narrow with it when the panel opens).
+.stageArea {
+	position: relative;
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	overflow: hidden;
+	display: flex;
 	align-items: center;
 	justify-content: center;
 }

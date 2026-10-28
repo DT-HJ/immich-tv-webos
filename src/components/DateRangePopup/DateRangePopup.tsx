@@ -5,6 +5,7 @@ import Popup from '@enact/sandstone/Popup';
 import {useWebOSKeys} from '../../hooks/useWebOSKeys';
 import {formatDay, parseDay, type DateRange} from '../../domain/filterSelection';
 import css from './DateRangePopup.module.less';
+import {t} from '../../i18n/i18n';
 
 interface DateRangePopupProps {
 	initial: DateRange;
@@ -36,24 +37,31 @@ export const DateRangePopup: React.FC<DateRangePopupProps> = ({initial, minYear,
 	const fromProps = {value: from, onChange: handleFrom, minYear, maxYear} as any;
 	const toProps = {value: to, onChange: handleTo, minYear, maxYear} as any;
 
+	// One row: a picker owns Up/Down (they change its value), so From, To and the buttons are
+	// reached with Left/Right alone.
 	return (
 		<Popup open position="center" scrimType="translucent" noAnimation onClose={onCancel}>
 			<div className={css.content}>
-				<div className={css.heading}>Date range</div>
-				<div className={css.pickers}>
-					<div className={css.caption}>From</div>
-					<DatePicker {...fromProps} />
-					<div className={css.caption}>To</div>
-					<DatePicker {...toProps} />
+				<div className={css.heading}>{t('filter.rangeTitle')}</div>
+				<div className={css.row}>
+					<div className={css.field}>
+						<div className={css.caption}>{t('filter.rangeFrom')}</div>
+						<DatePicker {...fromProps} />
+					</div>
+					<div className={css.field}>
+						<div className={css.caption}>{t('filter.rangeTo')}</div>
+						<DatePicker {...toProps} />
+					</div>
+					<div className={css.actions}>
+						<Button size="small" onClick={handleApply}>
+							{t('filter.apply')}
+						</Button>
+						<Button size="small" onClick={onCancel}>
+							{t('filter.cancel')}
+						</Button>
+					</div>
 				</div>
-				<div className={css.actions}>
-					<Button size="small" onClick={handleApply}>
-						Apply
-					</Button>
-					<Button size="small" onClick={onCancel}>
-						Cancel
-					</Button>
-				</div>
+				<div className={css.hint}>{t('filter.rangeHint')}</div>
 			</div>
 		</Popup>
 	);

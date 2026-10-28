@@ -2,6 +2,7 @@ import React, {useMemo} from 'react';
 import {useSearch, type SearchQuery} from '../hooks/useSearch';
 import {AssetGridView} from '../components/AssetGridView';
 import {formatCount} from '../utils/FormattingService';
+import {t} from '../i18n/i18n';
 
 interface PlaceViewProps {
 	city: string;
@@ -23,7 +24,7 @@ const PlaceView: React.FC<PlaceViewProps> = ({city, onBack, contentWidth}) => {
 			isLoading={isLoading}
 			error={error}
 			isEmpty={groups.length === 0}
-			emptyText="No photos found for this place."
+			emptyText={t('place.empty')}
 			spotlightId="place-grid"
 			onBack={onBack}
 			contentWidth={contentWidth}

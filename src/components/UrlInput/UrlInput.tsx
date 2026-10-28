@@ -2,6 +2,7 @@ import React, {useEffect, useMemo, useRef} from 'react';
 import {SpottableDiv} from '../../utils/spotlight';
 import {FieldRow} from '../FieldRow/FieldRow';
 import css from './UrlInput.module.less';
+import {t} from '../../i18n/i18n';
 
 const SHORTCUTS = ['http://', 'https://', '.local', '.com', ':2283', ':30041'] as const;
 
@@ -35,7 +36,7 @@ export const UrlInput: React.FC<UrlInputProps> = ({value, onChange, placeholder,
 				placeholder={placeholder}
 				disabled={disabled}
 				autoFocus={autoFocus}
-				clearLabel="Clear URL"
+				clearLabel={t('auth.clearUrl')}
 			/>
 			<div className={css.chips} role="group" aria-label="URL shortcuts">
 				{SHORTCUTS.map(s => (

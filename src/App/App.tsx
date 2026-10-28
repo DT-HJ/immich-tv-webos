@@ -8,6 +8,7 @@ import {RepositoryProvider} from '../domain/RepositoryContext';
 import {APIError} from '../api/client';
 import AppLayout from '../views/AppLayout';
 import {AccountPanel} from '../views/AccountPanel/AccountPanel';
+import {ServerUnavailable} from '../components/ServerUnavailable/ServerUnavailable';
 import {deriveInitial, pickGradient} from '../utils/accountVisual';
 import {createPairingDriver} from '../pairing/createPairingDriver';
 import type {PairedAccountResult} from '../pairing/types';
@@ -17,6 +18,7 @@ import './attachErrorHandler';
 import '../styles/tokens.less';
 
 import css from './App.module.less';
+import {t} from '../i18n/i18n';
 
 const AppBase: React.FC = () => {
 	const {
@@ -26,10 +28,12 @@ const AppBase: React.FC = () => {
 		repository,
 		isValidating,
 		validationError,
+		serverUnreachable,
 		addAccount,
 		addPairedAccount,
 		removeAccount,
 		switchTo,
+		retry,
 		setAsDefault,
 	} = useAccounts();
 
@@ -109,10 +113,20 @@ const AppBase: React.FC = () => {
 		);
 	}
 
-	// Branch 2: accounts exist but no repository yet
+	// Branch 2: the server didn't answer at sign-in (switched off): wait for it, retrying, rather
+	// than offering account management for what isn't an account problem.
+	if (serverUnreachable && !repository && !overlayOpen && activeAccount) {
+		return (
+			<div className={css.app}>
+				<ServerUnavailable serverUrl={activeAccount.baseUrl} retrying={isValidating} onRetry={retry} onOpenAccounts={openOverlay} />
+			</div>
+		);
+	}
+
+	// Branch 3: accounts exist but no repository yet
 	if (isValidating && !repository && !overlayOpen) {
 		return (
-			<div className={css.boot}>Loading…</div>
+			<div className={css.boot}>{t('state.loading')}</div>
 		);
 	}
 
@@ -141,7 +155,7 @@ const AppBase: React.FC = () => {
 		);
 	}
 
-	// Branch 3: repository ready
+	// Branch 4: repository ready
 	return (
 		<QueryClientProvider client={queryClient}>
 			<RepositoryProvider key={activeAccountId ?? undefined} repository={repository}>

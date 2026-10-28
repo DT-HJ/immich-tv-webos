@@ -5,6 +5,7 @@ import {useAssetRotation} from '../../hooks/useAssetRotation';
 import {useRepository} from '../../domain/RepositoryContext';
 import {createSpotlightContainer, forceFocus, SpottableDiv} from '../../utils/spotlight';
 import type {TimelineAsset} from '../../domain/types';
+import {InfoPanel} from '../InfoPanel/InfoPanel';
 import {MediaControls, ACTION_BAR_SPOTLIGHT_ID} from './MediaControls';
 import {VideoPlayer, VideoPlayerApi} from './VideoPlayer';
 import css from './MediaViewer.module.less';
@@ -19,6 +20,8 @@ interface MediaViewerProps {
 	onStartSlideshow: () => void;
 	// A video played to its end: the grid moves on to the next video.
 	onVideoEnded: () => void;
+	// This video was opened by the previous one ending.
+	autoplayed?: boolean;
 }
 
 const VIEWER_SPOTLIGHT_ID = 'media-viewer';
@@ -32,10 +35,14 @@ const ViewerContainer = createSpotlightContainer({enterTo: 'last-focused'});
 const swallowKey = () => {};
 const focusStage = () => forceFocus(STAGE_SPOTLIGHT_ID);
 const focusActionBar = () => forceFocus(ACTION_BAR_SPOTLIGHT_ID);
-// How long the info overlay stays up on a video once it starts (or after Up re-shows it).
+// How long the info overlay stays up on a video once it starts.
 const VIDEO_INFO_FLASH_MS = 4000;
+// Remote Play (webOS VK_PLAY) and the Play/Pause media key.
+const PLAY_KEYCODES = new Set([415, 179]);
+// Up opens the details panel, so on photos it no longer brings the chrome back.
+const PHOTO_REVEAL_KEYS: ReadonlySet<string> = new Set(['Enter', 'ArrowDown']);
 
-export const MediaViewer: React.FC<MediaViewerProps> = React.memo(({getAssetAt, totalCount, currentIndex, position, onClose, onNavigate, onStartSlideshow, onVideoEnded}) => {
+export const MediaViewer: React.FC<MediaViewerProps> = React.memo(({getAssetAt, totalCount, currentIndex, position, onClose, onNavigate, onStartSlideshow, onVideoEnded, autoplayed = false}) => {
 	const repository = useRepository();
 	const asset = getAssetAt(currentIndex);
 
@@ -55,7 +62,14 @@ export const MediaViewer: React.FC<MediaViewerProps> = React.memo(({getAssetAt, 
 
 	// Auto-hide is for still images only: on video OK/Down belong to Sandstone's transport bar,
 	// so the reveal keys can't be swallowed. Video derives its chrome below instead.
-	const {visible: photoControlsVisible, show: showControls, hide: hideControls} = useAutoHideControls({enabled: !isVideo, controlsRef});
+	const {visible: photoControlsVisible, show: showControls, hide: hideControls} = useAutoHideControls({
+		enabled: !isVideo,
+		controlsRef,
+		revealKeys: PHOTO_REVEAL_KEYS,
+	});
+	// The details panel stays open while paging, following the asset on screen.
+	const [infoOpen, setInfoOpen] = useState(false);
+	const toggleInfo = useCallback(() => setInfoOpen((open) => !open), []);
 	const inActionBar = !isVideo && photoControlsVisible && actionBarFocused;
 
 	// The bar faded out under an idle focus: hand it back to the stage rather than leave it on
@@ -97,20 +111,23 @@ export const MediaViewer: React.FC<MediaViewerProps> = React.memo(({getAssetAt, 
 		const timer = window.setTimeout(() => setExpiredVideoInfoFlash(videoInfoFlash), VIDEO_INFO_FLASH_MS);
 		return () => window.clearTimeout(timer);
 	}, [isVideo, videoInfoFlash]);
-	const flashVideoInfo = useCallback(() => setVideoInfoFlash((n) => n + 1), []);
 	const videoInfoVisible = expiredVideoInfoFlash !== videoInfoFlash;
 	const controlsVisible = isVideo ? videoControlsOpen || videoInfoVisible : photoControlsVisible;
 
-	// Back closes the transport bar if open, the viewer otherwise. Our Back bridge
-	// (capture + stopImmediatePropagation) preempts Sandstone's Cancelable, so the
-	// two-step behavior has to be restored here.
+	// Back closes the details panel, then the transport bar if open, then the viewer. Our Back
+	// bridge (capture + stopImmediatePropagation) preempts Sandstone's Cancelable, so the
+	// step-by-step behavior has to be restored here.
 	const handleBack = useCallback(() => {
+		if (infoOpen) {
+			setInfoOpen(false);
+			return;
+		}
 		if (videoControlsOpen && playerApiRef.current) {
 			playerApiRef.current.hideControls();
 			return;
 		}
 		onClose();
-	}, [videoControlsOpen, onClose]);
+	}, [infoOpen, videoControlsOpen, onClose]);
 
 	useWebOSKeys({
 		onBack: handleBack,
@@ -121,9 +138,22 @@ export const MediaViewer: React.FC<MediaViewerProps> = React.memo(({getAssetAt, 
 		// Up/down must never reach Spotlight unhandled, or it leaks focus to the grid behind the
 		// overlay. Unassigned here, they are reveal keys (useAutoHideControls) or belong to the
 		// Sandstone video bar.
-		onArrowUp: isVideo ? (videoControlsOpen ? undefined : flashVideoInfo) : inActionBar ? focusStage : controlsVisible ? swallowKey : undefined,
+		onArrowUp: isVideo ? (videoControlsOpen ? undefined : toggleInfo) : inActionBar ? focusStage : toggleInfo,
 		onArrowDown: isVideo ? undefined : inActionBar ? swallowKey : controlsVisible ? focusActionBar : undefined,
 	});
+
+	// The remote's Play starts a slideshow from a photo (on a video it is the player's).
+	useEffect(() => {
+		if (isVideo) return undefined;
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (!PLAY_KEYCODES.has(event.keyCode)) return;
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			onStartSlideshow();
+		};
+		window.addEventListener('keydown', handleKeyDown, {capture: true});
+		return () => window.removeEventListener('keydown', handleKeyDown, {capture: true});
+	}, [isVideo, onStartSlideshow]);
 
 	// Photos rest focus on the stage; forcing it also pulls focus off the grid card behind the
 	// overlay when the viewer was opened with the pointer.
@@ -150,34 +180,41 @@ export const MediaViewer: React.FC<MediaViewerProps> = React.memo(({getAssetAt, 
 
 	return (
 		<ViewerContainer spotlightId={VIEWER_SPOTLIGHT_ID} spotlightRestrict="self-only" className={css.viewerOverlay}>
-			<div className={css.viewerContent}>
-				{isVideo ? (
-					<VideoPlayer src={mediaUrl} onControlsAvailable={handleVideoControlsAvailable} onEnded={onVideoEnded} apiRef={playerApiRef} />
-				) : (
-					<img
-						src={mediaUrl}
-						alt=""
-						className={rotation % 180 ? `${css.photo} ${css.quarterTurn}` : css.photo}
-						style={rotation ? {transform: `rotate(${rotation}deg)`} : undefined}
-					/>
-				)}
+			{/* The media and its chrome share the area left of the details panel. */}
+			<div className={css.stageArea}>
+				<div className={css.viewerContent}>
+					{isVideo ? (
+						<VideoPlayer src={mediaUrl} onControlsAvailable={handleVideoControlsAvailable} onEnded={onVideoEnded} apiRef={playerApiRef} />
+					) : (
+						<img
+							src={mediaUrl}
+							alt=""
+							className={rotation % 180 ? `${css.photo} ${css.quarterTurn}` : css.photo}
+							style={rotation ? {transform: `rotate(${rotation}deg)`} : undefined}
+						/>
+					)}
+				</div>
+				{!isVideo && <SpottableDiv spotlightId={STAGE_SPOTLIGHT_ID} className={css.stage} onClick={handleStageClick} />}
+				<MediaControls
+					rootRef={controlsRef}
+					asset={asset}
+					position={position}
+					isVideo={isVideo}
+					controlsVisible={controlsVisible}
+					infoOpen={infoOpen}
+					autoplayed={isVideo && autoplayed}
+					canGoPrev={currentIndex > 0}
+					canGoNext={currentIndex < totalCount - 1}
+					onPrev={handlePrev}
+					onNext={handleNext}
+					onClose={onClose}
+					onRotate={rotate}
+					onStartSlideshow={onStartSlideshow}
+					onToggleInfo={toggleInfo}
+					onActionBarFocusChange={setActionBarFocused}
+				/>
 			</div>
-			{!isVideo && <SpottableDiv spotlightId={STAGE_SPOTLIGHT_ID} className={css.stage} onClick={handleStageClick} />}
-			<MediaControls
-				rootRef={controlsRef}
-				asset={asset}
-				position={position}
-				isVideo={isVideo}
-				controlsVisible={controlsVisible}
-				canGoPrev={currentIndex > 0}
-				canGoNext={currentIndex < totalCount - 1}
-				onPrev={handlePrev}
-				onNext={handleNext}
-				onClose={onClose}
-				onRotate={rotate}
-				onStartSlideshow={onStartSlideshow}
-				onActionBarFocusChange={setActionBarFocused}
-			/>
+			{infoOpen && <InfoPanel asset={asset} />}
 		</ViewerContainer>
 	);
 });

@@ -24,6 +24,8 @@ interface FilterChipsProps<T> {
 	// Several chips may be on (a multi-choice row); the row lands on the first of them.
 	selectedKeys: readonly string[];
 	onSelect: (value: T) => void;
+	// For focusing the row from outside (it lands on its selected chip).
+	spotlightId?: string;
 }
 
 interface ChipProps<T> {
@@ -46,8 +48,8 @@ const Chip = <T,>({option, isSelected, onSelect}: ChipProps<T>) => {
 };
 
 /** One labelled row of chips, scrolling sideways when it outgrows the screen. */
-export const FilterChips = <T,>({label, options, selectedKeys, onSelect}: FilterChipsProps<T>) => (
-	<RowContainer className={css.row}>
+export const FilterChips = <T,>({label, options, selectedKeys, onSelect, spotlightId}: FilterChipsProps<T>) => (
+	<RowContainer className={css.row} spotlightId={spotlightId}>
 		<span className={css.label}>{label}</span>
 		<div className={css.chipsWrapper}>
 			<Scroller direction="horizontal" scrollMode="native" horizontalScrollbar="hidden" style={{height: ri.scale(112)}}>

@@ -1,4 +1,4 @@
-import {useEffect} from 'react';
+import {useEffect, useRef} from 'react';
 
 interface UseWebOSKeysOptions {
 	onBack?: () => void;
@@ -56,11 +56,17 @@ function isEditingText(target: EventTarget | null): boolean {
 // onClose to the top, closing it pops it, then the album-level back becomes active again.
 const backStack: Array<() => void> = [];
 
+// Below every screen on the stack: the app's root views. Returns false to leave the key to WAM
+// (its "exit app?" prompt), true when it acted on it.
+let rootBack: (() => boolean) | null = null;
+
 function fireTopBack(): boolean {
 	const top = backStack[backStack.length - 1];
-	if (!top) return false;
-	top();
-	return true;
+	if (top) {
+		top();
+		return true;
+	}
+	return rootBack ? rootBack() : false;
 }
 
 let bridgeInstalled = false;
@@ -125,4 +131,24 @@ export const useWebOSKeys = ({onBack, onArrowLeft, onArrowRight, onArrowUp, onAr
 			}
 		};
 	}, [onBack, onArrowLeft, onArrowRight, onArrowUp, onArrowDown]);
+};
+
+/**
+ * Back on the root views, consulted only when no screen on the stack (viewer, album, popup,
+ * account overlay) takes it. `handler` returns false to let the app exit as usual. Registered
+ * once: a changing handler is read through a ref, so it never climbs above a screen.
+ */
+export const useRootBack = (handler: () => boolean) => {
+	const handlerRef = useRef(handler);
+	useEffect(() => {
+		handlerRef.current = handler;
+	});
+	useEffect(() => {
+		ensureBridgeInstalled();
+		const entry = () => handlerRef.current();
+		rootBack = entry;
+		return () => {
+			if (rootBack === entry) rootBack = null;
+		};
+	}, []);
 };

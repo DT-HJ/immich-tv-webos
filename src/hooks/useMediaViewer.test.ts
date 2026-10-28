@@ -22,3 +22,12 @@ describe('useMediaViewer', () => {
 		expect(result.current.state).toEqual({assetId: 'b', assetIndex: 1});
 	});
 });
+
+test('an asset opened by autoplay says so until the user pages away', () => {
+	const assets = [asset('a'), asset('b'), asset('c')];
+	const {result} = renderHook(() => useMediaViewer(assets));
+	act(() => result.current.open('b', {autoplayed: true}));
+	expect(result.current.state).toEqual({assetId: 'b', assetIndex: 1, autoplayed: true});
+	act(() => result.current.navigate('next'));
+	expect(result.current.state).toEqual({assetId: 'c', assetIndex: 2});
+});

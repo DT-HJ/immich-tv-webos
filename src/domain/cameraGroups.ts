@@ -9,6 +9,9 @@ const COMPANY_SUFFIX = /(?:[\s,]+(?:computer\s+inc|inc|incorporated|corp|corpora
 
 const groupKey = (value: string): string => value.trim().toLowerCase().replace(COMPANY_SUFFIX, '');
 
+/** A make as people say it: 'Apple Computer Inc.' → 'Apple', 'NIKON CORPORATION' → 'NIKON'. */
+export const bareMake = (make: string): string => make.trim().replace(new RegExp(COMPANY_SUFFIX.source, 'i'), '');
+
 // The bare name reads best ('Apple' over 'Apple Computer Inc.'), then mixed case ('Sony' over
 // 'SONY', 'Samsung' over 'samsung').
 function labelRank(value: string): number {

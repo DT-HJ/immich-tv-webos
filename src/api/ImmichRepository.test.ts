@@ -318,3 +318,57 @@ describe('ImmichRepository.videoPlaybackUrl', () => {
 		);
 	});
 });
+
+describe('ImmichRepository.getAssetDetails', () => {
+	test('maps EXIF, upright size and named people; placeholders read as missing', async () => {
+		const fetch = jest.fn().mockResolvedValue({
+			id: 'x',
+			type: 'IMAGE',
+			fileCreatedAt: '2026-10-28T10:38:00.000Z',
+			duration: null,
+			width: 4284,
+			height: 5712,
+			isFavorite: true,
+			originalFileName: 'IMG_2963.HEIC',
+			people: [{name: '홍길동'}, {name: ''}, {name: null}],
+			exifInfo: {
+				exifImageWidth: 5712,
+				exifImageHeight: 4284,
+				make: 'Apple',
+				model: 'iPhone 15 Pro',
+				lensModel: 'none',
+				fNumber: 1.8,
+				exposureTime: '1/41',
+				iso: 640,
+				focalLength: 6.76,
+				fileSizeInByte: 1828985,
+				city: 'Gyeongju',
+				state: 'Gyeongsangbuk-do',
+				country: 'South Korea',
+				description: '  ',
+			},
+		});
+		const details = await repoWithFetch(fetch).getAssetDetails('x');
+		expect(fetch).toHaveBeenCalledWith('/assets/x');
+		expect(details).toEqual({
+			id: 'x',
+			fileName: 'IMG_2963.HEIC',
+			make: 'Apple',
+			model: 'iPhone 15 Pro',
+			lens: null,
+			fNumber: 1.8,
+			exposureTime: '1/41',
+			iso: 640,
+			focalLength: 6.76,
+			width: 4284,
+			height: 5712,
+			fileSize: 1828985,
+			city: 'Gyeongju',
+			state: 'Gyeongsangbuk-do',
+			country: 'South Korea',
+			description: null,
+			people: ['홍길동'],
+			isFavorite: true,
+		});
+	});
+});

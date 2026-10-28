@@ -1,3 +1,5 @@
+import {t} from '../i18n/i18n';
+import {formatCalendarDay} from '../utils/FormattingService';
 import type {AssetFilter, AssetType, CameraFilter, CameraGroup} from './types';
 
 /** Inclusive range of local calendar days, 'YYYY-MM-DD'. */
@@ -161,11 +163,9 @@ export function parseSelection(raw: unknown): FilterSelection {
 	};
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 export function formatDayLabel(day: string): string {
 	const date = parseDay(day);
-	return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+	return formatCalendarDay(date.getFullYear(), date.getMonth() + 1, date.getDate());
 }
 
 export function describeDate(range: DateRange): string {
@@ -176,18 +176,18 @@ export function describeDate(range: DateRange): string {
 
 /** Summary line above the results, e.g. "Videos · Sony, Others · 2025 · Favorites". */
 export function describeSelection(s: FilterSelection, names: {people?: ReadonlyMap<string, string>; albums?: ReadonlyMap<string, string>} = {}): string {
-	const parts = [s.type === 'IMAGE' ? 'Photos' : s.type === 'VIDEO' ? 'Videos' : 'Photos & videos'];
+	const parts = [t(s.type === 'IMAGE' ? 'filter.photos' : s.type === 'VIDEO' ? 'filter.videos' : 'filter.photosAndVideos')];
 	const cameras = s.makes.map((make) => {
-		const models = s.models.filter((m) => m.make === make).map((m) => m.model ?? 'no model');
+		const models = s.models.filter((m) => m.make === make).map((m) => m.model ?? t('filter.noModel'));
 		return models.length ? `${make} ${models.join('/')}` : make;
 	});
-	if (s.noMake) cameras.push('Others');
+	if (s.noMake) cameras.push(t('filter.others'));
 	if (cameras.length) parts.push(cameras.join(', '));
 	if (s.date) parts.push(describeDate(s.date));
 	const people = s.people.map((id) => names.people?.get(id)).filter(Boolean);
 	if (people.length) parts.push(people.join(', '));
 	const albums = s.albums.map((id) => names.albums?.get(id)).filter(Boolean);
 	if (albums.length) parts.push(albums.join(', '));
-	if (s.favorites) parts.push('Favorites');
+	if (s.favorites) parts.push(t('filter.favoritesPlain'));
 	return parts.join(' · ');
 }

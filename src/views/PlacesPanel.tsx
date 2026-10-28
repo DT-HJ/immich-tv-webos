@@ -7,6 +7,7 @@ import {usePlaces} from '../hooks/usePlaces';
 import {useFocusOnReturn} from '../hooks/useFocusOnReturn';
 import type {RoutePanelProps} from '../types/navigation';
 import {formatCount} from '../utils/FormattingService';
+import {t} from '../i18n/i18n';
 
 const PlacesPanel: React.FC<RoutePanelProps> = ({contentWidth}) => {
 	const [selectedCity, setSelectedCity] = useState<string | null>(null);
@@ -28,10 +29,10 @@ const PlacesPanel: React.FC<RoutePanelProps> = ({contentWidth}) => {
 			isLoading={isLoading}
 			error={error}
 			isEmpty={!places?.length}
-			loadingText="Loading places…"
-			emptyText="No places found. Photos need location data to appear here."
+			loadingText={t('places.loading')}
+			emptyText={t('places.empty')}
 		>
-			<CollectionGrid title="Places" subtitle={places ? formatCount(places.length, 'place') : undefined}>
+			<CollectionGrid title={t('places.title')} subtitle={places ? formatCount(places.length, 'place') : undefined}>
 				{places?.map((place) => (
 					<PlaceCard key={place.city} place={place} onSelect={handleSelectPlace} />
 				))}

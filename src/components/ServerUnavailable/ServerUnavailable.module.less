@@ -1,0 +1,45 @@
+@import '../../styles/_theme.less';
+
+.screen {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 100vh;
+	padding: 0 @page-inset-x;
+	box-sizing: border-box;
+	background: linear-gradient(180deg, @bg-top 0%, @bg-bottom 100%);
+	text-align: center;
+}
+
+.icon {
+	margin: 0 0 32px;
+	color: @text-subtle;
+}
+
+.title {
+	font-size: var(--font-display);
+	font-weight: 600;
+	color: @text;
+}
+
+.body {
+	max-width: 2000px;
+	margin-top: 24px;
+	font-size: var(--font-body);
+	line-height: 1.4;
+	color: @text-muted;
+}
+
+.url {
+	margin-top: 16px;
+	font-size: var(--font-caption);
+	color: @text-subtle;
+}
+
+.actions {
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+	margin-top: 64px;
+}

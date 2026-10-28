@@ -1,6 +1,7 @@
 import React, {useCallback} from 'react';
 import Button from '@enact/sandstone/Button';
 import css from './AccountActionBar.module.less';
+import {t} from '../../i18n/i18n';
 
 interface Props {
 	focusedAccountId: string | null;
@@ -37,12 +38,12 @@ export const AccountActionBar: React.FC<Props> = ({
 
 	return (
 		<div className={css.bar}>
-			{!isActive ? <Button onClick={handleSwitch}>Switch</Button> : null}
+			{!isActive ? <Button onClick={handleSwitch}>{t('account.switch')}</Button> : null}
 			<Button onClick={handleSetDefault} disabled={isDefault}>
 				Set as default
 			</Button>
 			<Button onClick={handleRemove} backgroundOpacity="transparent">
-				{isActive ? 'Sign out' : 'Remove'}
+				{isActive ? t('account.signOut') : t('account.remove')}
 			</Button>
 		</div>
 	);

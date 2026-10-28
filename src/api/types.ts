@@ -56,14 +56,28 @@ export interface ImmichAsset {
 	height?: number;
 	// 'timeline' | 'hidden' | 'archive' | 'locked'; absent on old servers
 	visibility?: string;
+	isFavorite?: boolean;
+	originalFileName?: string;
+	// Full asset DTO (GET /assets/{id}) only
+	people?: {name?: string | null}[];
 }
 
 interface ExifInfo {
-	exifImageWidth?: number;
-	exifImageHeight?: number;
+	exifImageWidth?: number | null;
+	exifImageHeight?: number | null;
 	// Populated on /search/cities responses (all server versions, v3 included)
 	city?: string | null;
+	state?: string | null;
 	country?: string | null;
+	make?: string | null;
+	model?: string | null;
+	lensModel?: string | null;
+	fNumber?: number | null;
+	exposureTime?: string | null;
+	iso?: number | null;
+	focalLength?: number | null;
+	fileSizeInByte?: number | null;
+	description?: string | null;
 }
 
 export interface ColumnarAssetResponse {
@@ -92,6 +106,7 @@ export interface ImmichAlbum {
 	description: string;
 	albumThumbnailAssetId: string | null;
 	assetCount: number;
+	endDate?: string | null;
 }
 
 export interface ImmichAlbumDetails extends ImmichAlbum {

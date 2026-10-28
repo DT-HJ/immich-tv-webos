@@ -1,21 +1,33 @@
 @import '../../styles/_theme.less';
 
+// A centered Popup sits at left: 50%, so on its own it shrinks to half the screen: the width is
+// set here instead, room for two pickers (with their date labels) and the buttons in one row.
 .content {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	width: 2640px;
 }
 
 .heading {
 	font-size: var(--font-title);
 	color: @text;
-	margin-bottom: 24px;
+	margin-bottom: 16px;
 }
 
-.pickers {
+.row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+// A picker wraps its day field below the others when squeezed: keep each at its own width.
+.field {
+	flex: 0 0 auto;
 	display: flex;
 	flex-direction: column;
 	align-items: stretch;
+	margin-right: 48px;
 }
 
 .caption {
@@ -26,9 +38,16 @@
 	margin: 16px 0 0 24px;
 }
 
+// Side by side, after the pickers: Right from the To picker lands on Apply, then Cancel.
 .actions {
+	flex: 0 0 auto;
 	display: flex;
 	flex-direction: row;
-	justify-content: center;
-	margin-top: 32px;
+	align-items: center;
+}
+
+.hint {
+	margin-top: 24px;
+	font-size: var(--font-caption);
+	color: @text-subtle;
 }
