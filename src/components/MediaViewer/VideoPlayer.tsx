@@ -15,6 +15,8 @@ interface VideoPlayerProps {
 	// Fired by Sandstone when its media controls show/hide. Documented as ({available}),
 	// but forwardCustom drops the payload — read `areControlsVisible()` instead.
 	onControlsAvailable?: (ev: {available?: boolean}) => void;
+	// Playback reached the end (media `ended`, forwarded by Sandstone through ui/Media).
+	onEnded?: () => void;
 	// Not Sandstone's `playerRef` prop (that one exposes the DOM node, not the API).
 	apiRef?: React.Ref<VideoPlayerApi>;
 }
@@ -41,8 +43,8 @@ const PLAYER_PROPS = {
 	backButtonAriaLabel: HIDDEN_BACK_LABEL,
 };
 
-export const VideoPlayer: React.FC<VideoPlayerProps> = ({src, onControlsAvailable, apiRef}) => {
-	const playerProps = {...PLAYER_PROPS, onControlsAvailable, ref: apiRef};
+export const VideoPlayer: React.FC<VideoPlayerProps> = ({src, onControlsAvailable, onEnded, apiRef}) => {
+	const playerProps = {...PLAYER_PROPS, onControlsAvailable, onEnded, ref: apiRef};
 	return (
 		<SandstoneVideoPlayer {...(playerProps as any)} className={css.viewerMedia}>
 			<source src={src} type="video/mp4" />

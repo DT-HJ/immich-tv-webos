@@ -17,6 +17,8 @@ interface MediaViewerProps {
 	onClose: () => void;
 	onNavigate: (direction: 'prev' | 'next') => void;
 	onStartSlideshow: () => void;
+	// A video played to its end: the grid moves on to the next video.
+	onVideoEnded: () => void;
 }
 
 const VIEWER_SPOTLIGHT_ID = 'media-viewer';
@@ -33,7 +35,7 @@ const focusActionBar = () => forceFocus(ACTION_BAR_SPOTLIGHT_ID);
 // How long the info overlay stays up on a video once it starts (or after Up re-shows it).
 const VIDEO_INFO_FLASH_MS = 4000;
 
-export const MediaViewer: React.FC<MediaViewerProps> = React.memo(({getAssetAt, totalCount, currentIndex, position, onClose, onNavigate, onStartSlideshow}) => {
+export const MediaViewer: React.FC<MediaViewerProps> = React.memo(({getAssetAt, totalCount, currentIndex, position, onClose, onNavigate, onStartSlideshow, onVideoEnded}) => {
 	const repository = useRepository();
 	const asset = getAssetAt(currentIndex);
 
@@ -150,7 +152,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = React.memo(({getAssetAt, 
 		<ViewerContainer spotlightId={VIEWER_SPOTLIGHT_ID} spotlightRestrict="self-only" className={css.viewerOverlay}>
 			<div className={css.viewerContent}>
 				{isVideo ? (
-					<VideoPlayer src={mediaUrl} onControlsAvailable={handleVideoControlsAvailable} apiRef={playerApiRef} />
+					<VideoPlayer src={mediaUrl} onControlsAvailable={handleVideoControlsAvailable} onEnded={onVideoEnded} apiRef={playerApiRef} />
 				) : (
 					<img
 						src={mediaUrl}

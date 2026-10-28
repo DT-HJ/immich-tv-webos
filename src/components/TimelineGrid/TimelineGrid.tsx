@@ -12,6 +12,7 @@ import {useTimelineLayout} from '../../hooks/useTimelineLayout';
 import {useViewerPosition} from '../../hooks/useViewerPosition';
 import {focusTimelineViewport, useTimelineViewportFocus} from '../../hooks/useTimelineViewportFocus';
 import {monthKey} from '../../domain/transforms';
+import {nextVideoInList, nextVideoInTimeline} from '../../domain/nextVideo';
 import {createSpotlightContainer} from '../../utils/spotlight';
 import type {JustifiedLayoutResult} from '../../utils/justifiedLayout';
 import type {SlideshowSource} from '../../domain/slideshow';
@@ -271,10 +272,31 @@ export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({
 
 	const openViewer = viewer.open;
 	const handleSelectAsset = useCallback((asset: TimelineAsset) => openViewer(asset.id), [openViewer]);
+	const viewedAssetId = viewer.state?.assetId;
+	const viewedIndex = viewer.state?.assetIndex ?? -1;
+
+	// A video played to its end: move on to the next video of this grid (so a filter's results,
+	// in their order), photos skipped. Kept until it lands, since a month or page may load first.
+	// Paging or closing away drops it (state adjustment during render, like MediaViewer).
+	const [endedVideoId, setEndedVideoId] = useState<string | null>(null);
+	if (endedVideoId && endedVideoId !== viewedAssetId) setEndedVideoId(null);
+	const handleVideoEnded = useCallback(() => setEndedVideoId(viewedAssetId ?? null), [viewedAssetId]);
+	useEffect(() => {
+		if (!endedVideoId || viewedIndex < 0) return;
+		const current = flatAssets[viewedIndex];
+		if (!current) return;
+		const canLoadMore = !!onNearEnd && (knownTotal === undefined || totalCount < knownTotal);
+		const next = timeline
+			? nextVideoInTimeline(timeline.allBuckets, timeline.loadedMonths, timeline.failedMonths, current)
+			: nextVideoInList(flatAssets, viewedIndex, canLoadMore);
+		if (!next) return;
+		if ('video' in next) openViewer(next.video.id);
+		else if ('loadMonth' in next) timeline?.requestMonths([next.loadMonth]);
+		else onNearEnd?.();
+	}, [endedVideoId, viewedIndex, flatAssets, timeline, onNearEnd, knownTotal, totalCount, openViewer]);
 
 	// Back from the viewer lands on the photo last shown, even after paging far from the card
 	// that opened it: Spotlight would otherwise leave focus nowhere.
-	const viewedAssetId = viewer.state?.assetId;
 	const closeViewer = viewer.close;
 	const handleCloseViewer = useCallback(() => {
 		flushSync(closeViewer);
@@ -381,6 +403,7 @@ export const TimelineGrid = forwardRef<TimelineGridHandle, TimelineGridProps>(({
 						onClose={handleCloseViewer}
 						onNavigate={viewer.navigate}
 						onStartSlideshow={handleStartSlideshow}
+						onVideoEnded={handleVideoEnded}
 					/>
 				</ErrorBoundary>
 			)}
